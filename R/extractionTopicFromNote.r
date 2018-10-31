@@ -257,6 +257,11 @@ notePreprocessing <- function(covariateId,useDictionary =TRUE, targetLanguage = 
 
     covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
 
+    if(covariateSettings$useTextToVec | covariateSettings$useTopicModeling){
+        covariateId <- unique.default(sapply(covariateId, unique))
+    }
+
+
     return(covariateId)
 }
 
