@@ -11,6 +11,7 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                                         useDictionary=TRUE,
                                         targetLanguage = c('KOR','ENG'),
                                         limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
+                                        nGram = 1L,
                                         useTextToVec = FALSE,
                                         useTopicModeling=FALSE,
                                         numberOfTopics=10L,
@@ -22,15 +23,17 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
     #if(!useDictionary) stop('Currently you should use at least one dictionary to extract medical terms only')
     if ( sum(limitedMedicalTermOnlyLanguage %in% targetLanguage==FALSE)>=1 ) stop (paste('Select dictionary among target Languages :',
                                                                                          paste(targetLanguage,collapse=" ")))
-
     if (sum (useTextToVec,useTopicModeling,useGloVe,useAutoencoder) != 1 ) {
         stop("Choose only one among useTextToVec,useTopicModeling,useGloVe,useAutoencoder")
     }
-
+    if(!(useTextToVec|useTopicModeling) & !(nGram > 1)){
+        stop('Use ngram only for useTextToVec,useTopicModeling')
+    }
     covariateSettings <- list(useTopicFromNote = useTopicFromNote,
                               noteConceptId = noteConceptId,
                               useDictionary=useDictionary,
                               limitedMedicalTermOnlyLanguage=limitedMedicalTermOnlyLanguage,
+                              nGram=nGram,
                               targetLanguage = targetLanguage,
                               useTextToVec=useTextToVec,
                               useTopicModeling=useTopicModeling,
@@ -42,9 +45,6 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
     class(covariateSettings) <- 'covariateSettings'
     return(covariateSettings)
 }
-
-
-
 
 #' Custom createCoveriate Settings
 #'
@@ -75,8 +75,8 @@ getTopicFromNoteSettings <- function(connection,
         return(NULL)
     }
     #if (covariateSettings$useDictionary == TRUE){
-        #SQL query should be revised to extract only the latest record
-        #SQL to construct the covariate:
+    #SQL query should be revised to extract only the latest record
+    #SQL to construct the covariate:
     sql <- paste(
         'SELECT',
         '{@sampleSize != -1} ? {TOP @sampleSize}',
@@ -109,18 +109,22 @@ getTopicFromNoteSettings <- function(connection,
     rawcovariateId <- ff::ffapply(x[i1:i2],X= rawCovariates$covariateId, RETURN=TRUE, CFUN="list",
                                   AFUN = notePreprocessing)
 
-    if(covariateSettings$useDictionary){
-        names(rawcovariateId) <- 'note'
+    names(rawcovariateId) <- 'note'
+    rawcovariateId <- rawcovariateId$'note'
+    if(covariateSettings$nGram > 1L){
+        rawcovariateId <- lapply(rawcovariateId,ngram)
+    }
 
-        newDictionary <- lapply(rawcovariateId$'note', function(x) intersect(x,dictionaryForLanguage('ENG')))
-        newDictionary2 <- lapply(rawcovariateId$'note', function(x) intersect(x,dictionaryForLanguage('KOR')))
+    if(covariateSettings$useDictionary){
+        newDictionary <- lapply(rawcovariateId, function(x) intersect(x,dictionaryForLanguage('ENG')))
+        newDictionary2 <- lapply(rawcovariateId, function(x) intersect(x,dictionaryForLanguage('KOR')))
         for(i in 1:length(newDictionary)){
             newDictionary[[i]] <- paste0(paste(newDictionary[[i]],collapse="|"),paste(newDictionary2[[i]],collapse="|"))
-            rawcovariateId$'note'[[i]] <- rawcovariateId$'note'[[i]][grep(newDictionary[[i]],rawcovariateId$'note'[[i]])]
+            rawcovariateId[[i]] <- rawcovariateId[[i]][grep(newDictionary[[i]],rawcovariateId[[i]])]
         }
     }
 
-    covariateId <- rawcovariateId$'note'
+    covariateId <- rawcovariateId
 
     #Configuring covariate
     names(covariateId) <- rawCovariates$rowId[1:length(rawCovariates$rowId)]
@@ -218,9 +222,6 @@ getTopicFromNoteSettings <- function(connection,
 
 }
 
-
-
-
 #' Custom createCoveriate Settings
 #'
 #' This function is Custom createCoveriate Settings.
@@ -256,58 +257,34 @@ notePreprocessing <- function(covariateId,useDictionary =TRUE, targetLanguage = 
 
     covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
 
-
-
-    covariateIdN2 <- list()
-    covariateIdN3 <- list()
-    for(i in 1:length(covariateId)){
-        #N2
-        tempCovariateId <- covariateId[[i]][-1]
-        #N3
-        tempCovariateId2 <- tempCovariateId[-1]
-        for(k in 1:(length(covariateId[[i]])-1)){
-            tempWord <- gsub(' ','',paste(covariateId[[i]][k],tempCovariateId[k]))
-            if(k == 1){
-                covariateIdN2[[i]] <- tempWord
-            }
-            else{
-            covariateIdN2[[i]][k] <- tempWord
-            }
-        }
-        for(k in 1:(length(covariateId[[i]])-2)){
-            tempWord <- gsub(' ','',paste(covariateId[[i]][k],tempCovariateId[k],tempCovariateId2[k]))
-            if(k == 1){
-                covariateIdN3[[i]] <- tempWord
-            }
-            else{
-                covariateIdN3[[i]][k] <- tempWord
-            }
-        }
-    }
-
-
-
-    #string to vec                                                                          ## list
-    #covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
-    #covariateIdN2 <- strsplit(covariateIdN2,' ')
-    #covariateIdN3 <- strsplit(covariateIdN3,' ')
-
-    #Unique value. (Frequency is not taken into account.)
-    covariateId <- unique.default(sapply(covariateId, unique))
-    covariateIdN2 <- unique.default(sapply(covariateIdN2, unique))
-    covariateIdN3 <- unique.default(sapply(covariateIdN3, unique))
-
-    #covariateId <- list('N1'=covariateId,'N2'=covariateIdN2,'N3'=covariateIdN3)
-
-    for(i in 1:length(covariateId)){
-        covariateId[[i]] <- c(covariateId[[i]],covariateIdN2[[i]],covariateIdN3[[i]])
-    }
-
     return(covariateId)
 }
 
 dictionaryForLanguage<-function(Language="KOR"){
     return(  switch(Language, "KOR"=kor_dictionary_db[,1], "ENG" = eng_dictionary_db[,1])  )
 }
+
+
+ngram <- function(rawcovariateId){
+
+    rawcovariateIdN2 <- rawcovariateId[-1]
+
+    if(covariateSettings$nGram == 2){
+        rawcovariateId <- paste0(rawcovariateId,rawcovariateIdN2)
+    }
+    if(covariateSettings$nGram == 3){
+        rawcovariateIdN3 <- rawcovariateIdN2[-1]
+
+        rawcovariateId <- c(rawcovariateId,
+                            paste0(rawcovariateId,rawcovariateIdN2),
+                            paste0(rawcovariateId,rawcovariateIdN2,rawcovariateIdN3))
+    }
+
+    #Unique value. (Frequency is not taken into account.)
+    rawcovariateId <- unique.default(sapply(rawcovariateId, unique))
+
+    return(rawcovariateId)
+}
+
 
 
