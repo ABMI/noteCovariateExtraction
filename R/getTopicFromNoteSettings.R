@@ -66,12 +66,20 @@ getTopicFromNoteSettings <- function(connection,
     if(covariateSettings$nGram > 1L){
         rawcovariateId <- lapply(rawcovariateId,ngram)
     }
+    else{
+        rawcovariateId <- lapply(rawcovariateId, unique)
+    }
 
     if(covariateSettings$useDictionary){
         newDictionary <- lapply(rawcovariateId, function(x) intersect(x,dictionaryForLanguage('ENG')))
         newDictionary2 <- lapply(rawcovariateId, function(x) intersect(x,dictionaryForLanguage('KOR')))
         for(i in 1:length(newDictionary)){
-            newDictionary[[i]] <- paste0(paste(newDictionary[[i]],collapse="|"),paste(newDictionary2[[i]],collapse="|"))
+            if(!length(newDictionary[[i]])){
+            newDictionary[[i]] <- paste0(paste(newDictionary[[i]],collapse="|"),"|",paste(newDictionary2[[i]],collapse="|"))
+            }
+            else{
+                newDictionary[[i]] <- paste(newDictionary2[[i]],collapse="|")
+            }
             rawcovariateId[[i]] <- rawcovariateId[[i]][grep(newDictionary[[i]],rawcovariateId[[i]])]
         }
     }
