@@ -116,10 +116,13 @@ getTopicFromNoteSettings <- function(connection,
     if(covariateSettings$useTopicModeling == TRUE){
         covariates$covariateId<-as.numeric(as.factor(covariates$covariateId))
 
-        data <- Matrix::sparseMatrix(i=covariates$rowId,
+        numericRowId <- as.numeric(as.factor(covariates$rowId))
+        covariates <- cbind(covariates, numericRowId)
+
+        data <- Matrix::sparseMatrix(i=covariates$numericRowId,
                                      j=covariates$covariateId,
                                      x=covariates$covariateValue, #add 0.1 to avoid to treated as binary values
-                                     dims=c(length(unique(covariates$rowId)), max(covariates$covariateId))) # edit this to max(map$newIds)
+                                     dims=c(max(covariates$rowId), max(covariates$covariateId))) # edit this to max(map$newIds)
 
         colnames(data) <- as.numeric(paste0(9999,seq(levels(covariateId.factor)) ))
 
