@@ -70,12 +70,22 @@ getTopicFromNoteSettings <- function(connection,
         rawcovariateId <- lapply(rawcovariateId, unique)
     }
 
+    if(covariateSettings$buildTopidModelMinFrac != 0){
+        MinValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMinFrac)
+
+        MoreThanMin <- data.frame(table(unlist(rawcovariateId)),stringsAsFactors = F)
+        MoreThanMinWord <- as.vector(MoreThanMin[MoreThanMin$'Freq'>=MinValue,1])
+
+        rawcovariateId<-lapply(rawcovariateId, function(x) intersect(x, MoreThanMinWord))
+
+    }
+
     if(covariateSettings$useDictionary){
         newDictionary <- lapply(rawcovariateId, function(x) intersect(x,dictionaryForLanguage('ENG')))
         newDictionary2 <- lapply(rawcovariateId, function(x) intersect(x,dictionaryForLanguage('KOR')))
         for(i in 1:length(newDictionary)){
             if(!length(newDictionary[[i]])){
-            newDictionary[[i]] <- paste0(paste(newDictionary[[i]],collapse="|"),"|",paste(newDictionary2[[i]],collapse="|"))
+                newDictionary[[i]] <- paste0(paste(newDictionary[[i]],collapse="|"),"|",paste(newDictionary2[[i]],collapse="|"))
             }
             else{
                 newDictionary[[i]] <- paste(newDictionary2[[i]],collapse="|")
@@ -87,7 +97,10 @@ getTopicFromNoteSettings <- function(connection,
     covariateId <- rawcovariateId
 
     #Configuring covariate
-    names(covariateId) <- rawCovariates$rowId[1:length(rawCovariates$rowId)]
+    rowIdMappingDf<- data.frame('num' = rep(1:length(rawCovariates$rowId)),'rowId' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
+
+    names(covariateId) <- rowIdMappingDf$'num'
+    #names(covariateId) <- rawCovariates$rowId[1:length(rawCovariates$rowId)]
 
     covariates <- reshape2::melt(data = covariateId)
     colnames(covariates) <- c('covariateId','rowId')
@@ -116,18 +129,36 @@ getTopicFromNoteSettings <- function(connection,
     if(covariateSettings$useTopicModeling == TRUE){
         covariates$covariateId<-as.numeric(as.factor(covariates$covariateId))
 
-        numericRowId <- as.numeric(as.factor(covariates$rowId))
-        covariates <- cbind(covariates, numericRowId)
-
-        data <- Matrix::sparseMatrix(i=covariates$numericRowId,
+        data <- Matrix::sparseMatrix(i=covariates$rowId,
                                      j=covariates$covariateId,
                                      x=covariates$covariateValue, #add 0.1 to avoid to treated as binary values
                                      dims=c(max(covariates$rowId), max(covariates$covariateId))) # edit this to max(map$newIds)
 
         colnames(data) <- as.numeric(paste0(9999,seq(levels(covariateId.factor)) ))
 
+
         ##Topic Modeling
-        lda_model = text2vec::LDA$new(n_topics = covariateSettings$numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+
+
+        # rowTotals <- apply(dtm , 1, sum)
+        # dtm.new   <- dtm[rowTotals> 0, ]
+        if(covariateSettings$optimalTopicValue == TRUE){
+            library(topicmodels)
+
+            best.model <- lapply(seq(2,10, by=1), function(k){LDA(data, k)})
+            best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, logLik)))
+            best.model.logLik.df <- data.frame(topics=c(2:10), LL=as.numeric(as.matrix(best.model.logLik)))
+
+            optimal = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
+
+            detach("package:topicmodels", unload=TRUE)
+
+            lda_model = text2vec::LDA$new(n_topics = optimal, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+        }
+        else if(covariateSettings$optimalTopicValue == FALSE){
+            lda_model = text2vec::LDA$new(n_topics = covariateSettings$numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
+        }
+
         doc_topic_distr = lda_model$fit_transform(x = data, n_iter = 1000,
                                                   convergence_tol = 0.001, n_check_convergence = 25,
                                                   progressbar = FALSE)
@@ -141,14 +172,17 @@ getTopicFromNoteSettings <- function(connection,
         covariates<-reshape2::melt(doc_topic_distr_df,id.var = "rowId",
                                    variable.name="covariateId",
                                    value.name = "covariateValue")
+
         covariates$covariateId<-as.numeric(as.character(covariates$covariateId))
         covariates<-covariates[covariates$covariateValue!=0,]
         covariates<-ff::as.ffdf(covariates)
+
         ##need to remove 0
         covariateRef  <- data.frame(covariateId = covariateIds,
                                     covariateName = paste0("Topic",covariateIds),
                                     analysisId = 0,
                                     conceptId = 0)
+
         covariateRef <- ff::as.ffdf(covariateRef)
     }
 
@@ -179,7 +213,10 @@ getTopicFromNoteSettings <- function(connection,
     result <- list(covariates = covariates,
                    covariateRef = covariateRef,
                    analysisRef = analysisRef,
-                   metaData = metaData)
+                   metaData = metaData,
+                   topicModel = lda_model,
+                   wordList = rowIdMappingDf,
+                   SparseMatrix = data)
     class(result) <- "covariateData"
     return(result)
 

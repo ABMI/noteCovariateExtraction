@@ -12,9 +12,12 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                                         targetLanguage = c('KOR','ENG'),
                                         limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
                                         nGram = 1L,
+                                        buildTopicModeling= TRUE,
+                                        buildTopidModelMinFrac = 0.01,
                                         useTextToVec = FALSE,
                                         useTopicModeling=FALSE,
                                         numberOfTopics=10L,
+                                        optimalTopicValue =TRUE,
                                         useGloVe = FALSE,
                                         latentDimensionForGlove = 100L,
                                         useAutoencoder=FALSE,
@@ -34,10 +37,13 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                               useDictionary=useDictionary,
                               limitedMedicalTermOnlyLanguage=limitedMedicalTermOnlyLanguage,
                               nGram=nGram,
+                              buildTopicModeling = buildTopicModeling,
+                              buildTopidModelMinFrac = buildTopidModelMinFrac,
                               targetLanguage = targetLanguage,
                               useTextToVec=useTextToVec,
                               useTopicModeling=useTopicModeling,
                               numberOfTopics = numberOfTopics,
+                              optimalTopicValue =optimalTopicValue,
                               useGloVe=useGloVe,
                               useAutoencoder=useAutoencoder,
                               sampleSize=sampleSize)
@@ -45,5 +51,3 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
     class(covariateSettings) <- 'covariateSettings'
     return(covariateSettings)
 }
-
-

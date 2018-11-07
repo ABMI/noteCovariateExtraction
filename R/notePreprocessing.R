@@ -31,7 +31,11 @@ notePreprocessing <- function(covariateId,useDictionary =TRUE, targetLanguage = 
     #The spacing is only once                                                               ## vector
     covariateId <- stringr::str_replace_all(covariateId,"[[:space:]]{1,}"," ")
 
+    covariateId <- sub(' ','',covariateId)
+
     covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
+
+
 
     return(covariateId)
 }
