@@ -12,7 +12,7 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                                         targetLanguage = c('KOR','ENG'),
                                         limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
                                         nGram = 1L,
-                                        buildTopicModeling= TRUE,
+                                        buildTopicModeling= FALSE,
                                         buildTopidModelMinFrac = 0.01,
                                         useTextToVec = FALSE,
                                         useTopicModeling=FALSE,
@@ -47,7 +47,12 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                               useGloVe=useGloVe,
                               useAutoencoder=useAutoencoder,
                               sampleSize=sampleSize)
-    attr(covariateSettings,'fun') <- 'getTopicFromNoteSettings'
+    if(!buildTopicModeling == FALSE){
+        attr(covariateSettings,'fun') <- 'getTopicFromNoteSettings'
+    }
+    else{
+        attr(covariateSettings,'fun') <- 'buildTopicModeling'
+    }
     class(covariateSettings) <- 'covariateSettings'
     return(covariateSettings)
 }

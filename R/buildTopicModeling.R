@@ -1,7 +1,7 @@
 #' Custom createCoveriate Settings
 #'
 #' This function is Custom createCoveriate Settings.
-#' @connection connection,oracleTempSchema,cdmDatabaseSchema,cohortTable,cohortId,cdmVersion,rowIdField,covariateSettings,aggregated
+#' @connection connection,oracleTempSchema,cdmDatabaseSchema,cohortTable,cohortId,cdmVersion,rowIdField,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage,nGram,minFraction,numberOfTopics,noteConceptId,sampleSize
 #' @oracleTempSchema createCovariateSetting
 #' @cdmDatabaseSchema
 #' @cohortTable
@@ -11,24 +11,23 @@
 #' @noteConceptId
 #' @covariateSettings
 #' @aggregated
-#' getTopicFromNoteSettings()
-getTopicFromNoteSettings <- function(connection,
-                                     oracleTempSchema = NULL,
-                                     cdmDatabaseSchema,
-                                     cohortTable = "cohort",
-                                     cohortId = -1,
-                                     cdmVersion = "5",
-                                     rowIdField = "subject_id",
-                                     covariateSettings,
-                                     aggregated = FALSE){
-
-    writeLines('Constructing TopicFromNote')
-    if (covariateSettings$useTopicFromNote == FALSE) {
-        return(NULL)
-    }
-    #if (covariateSettings$useDictionary == TRUE){
-    #SQL query should be revised to extract only the latest record
-    #SQL to construct the covariate:
+#' buildTopicModeling()
+buildTopicModeling<-function(connection,
+                             oracleTempSchema = NULL,
+                             cdmDatabaseSchema,
+                             cohortTable = "cohort",
+                             cohortId = 800,
+                             cdmVersion = "5",
+                             rowIdField = "subject_id",
+                             useDictionary=TRUE,
+                             targetLanguage = c('KOR','ENG'),
+                             limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
+                             nGram = 1L,
+                             minFraction = 0.01,
+                             numberOfTopics=10L,
+                             noteConceptId = c(44814637),
+                             sampleSize=-1
+){
     sql <- paste(
         'SELECT',
         '{@sampleSize != -1} ? {TOP @sampleSize}',
@@ -209,16 +208,10 @@ getTopicFromNoteSettings <- function(connection,
     if (aggregated)
         stop("Aggregation not supported")
 
-    # Construct analysis reference:
-    metaData <- list(sql = sql, call = match.call())
-    result <- list(covariates = covariates,
-                   covariateRef = covariateRef,
-                   analysisRef = analysisRef,
-                   metaData = metaData)
-    class(result) <- "covariateData"
+    result <- list(topicModel = lda_model,
+                   wordList = rowIdMappingDf,
+                   nGramSetting = nGramSetting,
+                   optimalNumberOfTopic = optimalNumberOfTopic)
+
     return(result)
-
 }
-
-
-
