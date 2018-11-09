@@ -33,8 +33,12 @@ notePreprocessing <- function(covariateId,useDictionary =TRUE, targetLanguage = 
 
     covariateId <- sub(' ','',covariateId)
 
-    covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
-
+    if(covariateSettings$nGram >= 2){
+        covariateId <- lapply(covariateId, function(x) unlist(lapply(NLP::ngrams(NLP::words(x), 1:covariateSettings$nGram), paste, collapse = "")))
+    }
+    else{
+        covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
+    }
 
 
     return(covariateId)

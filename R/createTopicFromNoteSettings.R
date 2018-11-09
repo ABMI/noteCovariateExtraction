@@ -47,7 +47,7 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                               useGloVe=useGloVe,
                               useAutoencoder=useAutoencoder,
                               sampleSize=sampleSize)
-    if(!buildTopicModeling == FALSE){
+    if(buildTopicModeling == FALSE){
         attr(covariateSettings,'fun') <- 'getTopicFromNoteSettings'
     }
     else{
