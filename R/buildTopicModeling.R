@@ -61,12 +61,6 @@ buildTopicModeling<-function(connection,
 
     names(rawcovariateId) <- 'note'
     rawcovariateId <- rawcovariateId$'note'
-    if(covariateSettings$nGram > 1L){
-        rawcovariateId <- lapply(rawcovariateId,ngram)
-    }
-    else{
-        rawcovariateId <- lapply(rawcovariateId, unique)
-    }
 
     if(covariateSettings$buildTopidModelMinFrac != 0){
         MinValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMinFrac)
