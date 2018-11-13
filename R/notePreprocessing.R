@@ -34,12 +34,13 @@ notePreprocessing <- function(covariateId,useDictionary =TRUE, targetLanguage = 
     covariateId <- sub(' ','',covariateId)
 
     if(covariateSettings$nGram >= 2){
-        covariateId <- lapply(covariateId, function(x) unlist(lapply(NLP::ngrams(NLP::words(x), 1:covariateSettings$nGram), paste, collapse = "")))
+        covariateId <- lapply(covariateId, function(x) gsub(' ','',unlist(lapply(RWeka::NGramTokenizer(x, RWeka::Weka_control(min=1, max=covariateSettings$nGram)), paste0, collapse = ""))))
+        covariateId <- lapply(covariateId, unique)
     }
     else{
         covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
+        covariateId <- lapply(covariateId, unique)
     }
-
 
     return(covariateId)
 }
