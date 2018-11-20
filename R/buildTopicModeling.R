@@ -1,7 +1,7 @@
 #' Custom createCoveriate Settings
 #'
 #' This function is Custom createCoveriate Settings.
-#' @connection connection,oracleTempSchema,cdmDatabaseSchema,cohortTable,cohortId,cdmVersion,rowIdField,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage,nGram,minFraction,numberOfTopics,noteConceptId,sampleSize,covariateSettings
+#' @connection connection,oracleTempSchema,cdmDatabaseSchema,cohortTable,cohortId,cdmVersion,rowIdField,covariateSettings,aggregated
 #' @oracleTempSchema createCovariateSetting
 #' @cdmDatabaseSchema
 #' @cohortTable

@@ -9,7 +9,7 @@
 createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                                         noteConceptId = c(44814637),
                                         useDictionary=TRUE,
-                                        targetLanguage = c('KOR','ENG','JAR'),
+                                        targetLanguage = c('KOR','ENG'),
                                         limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
                                         nGram = 1L,
                                         buildTopicModeling= FALSE,
