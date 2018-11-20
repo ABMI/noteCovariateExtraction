@@ -1,7 +1,7 @@
 #' Custom createCoveriate Settings
 #'
 #' This function is Custom createCoveriate Settings.
-#' @connection connection,oracleTempSchema,cdmDatabaseSchema,cohortTable,cohortId,cdmVersion,rowIdField,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage,nGram,minFraction,numberOfTopics,noteConceptId,sampleSize
+#' @connection connection,oracleTempSchema,cdmDatabaseSchema,cohortTable,cohortId,cdmVersion,rowIdField,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage,nGram,minFraction,numberOfTopics,noteConceptId,sampleSize,covariateSettings
 #' @oracleTempSchema createCovariateSetting
 #' @cdmDatabaseSchema
 #' @cohortTable
@@ -16,18 +16,13 @@ buildTopicModeling<-function(connection,
                              oracleTempSchema = NULL,
                              cdmDatabaseSchema,
                              cohortTable = "cohort",
-                             cohortId = 800,
+                             cohortId,
                              cdmVersion = "5",
                              rowIdField = "subject_id",
-                             useDictionary=TRUE,
-                             targetLanguage = c('KOR','ENG'),
-                             limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
-                             nGram = 1L,
-                             minFraction = 0.01,
-                             numberOfTopics=10L,
-                             noteConceptId = c(44814637),
-                             sampleSize=-1
+                             covariateSettings = covariateSettings,
+                             aggregated = FALSE
 ){
+    if (!covariateSettings$buildTopicModeling) stop("buildTopicModeling is FALSE")
     sql <- paste(
         'SELECT',
         '{@sampleSize != -1} ? {TOP @sampleSize}',
@@ -39,7 +34,8 @@ buildTopicModeling<-function(connection,
         'ON n.person_id = c.subject_id',
         'AND n.NOTE_DATE = c.COHORT_START_DATE',
         'WHERE NOTE_TYPE_CONCEPT_ID = (SELECT DESCENDANT_CONCEPT_ID FROM @cdm_database_schema.CONCEPT_ANCESTOR WHERE ANCESTOR_CONCEPT_ID IN (@note_concept_id) )',
-        '{@cohort_id != -1} ? {AND cohort_definition_id = @cohort_id}'
+        '{@cohort_id != -1} ? {AND cohort_definition_id = @cohort_id}',
+        ';'
     )
     sql <- SqlRender::renderSql(sql,
                                 cohort_table = cohortTable,
@@ -91,9 +87,9 @@ buildTopicModeling<-function(connection,
     covariateId <- rawcovariateId
 
     #Configuring covariate
-    rowIdMappingDf<- data.frame('num' = rep(1:length(rawCovariates$rowId)),'rowId' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
+    rowIdMappingDf<- data.frame('rowId' = rep(1:length(rawCovariates$rowId)),'num' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
 
-    names(covariateId) <- rowIdMappingDf$'num'
+    names(covariateId) <- rowIdMappingDf$'rowId'
     #names(covariateId) <- rawCovariates$rowId[1:length(rawCovariates$rowId)]
 
     covariates <- reshape2::melt(data = covariateId)
@@ -101,8 +97,9 @@ buildTopicModeling<-function(connection,
     covariates$rowId <- as.numeric(covariates$rowId)
     covariateValue <- rep(1,nrow(covariates))
 
-    covariates <- cbind(covariates,covariateValue)
+    wordlist <- covariates
 
+    covariates <- cbind(covariates,covariateValue)
     #####################################
 
     covariateId.factor<-as.factor(covariates$covariateId)
@@ -150,6 +147,7 @@ buildTopicModeling<-function(connection,
             lda_model = text2vec::LDA$new(n_topics = optimal, doc_topic_prior = 0.1, topic_word_prior = 0.01)
         }
         else if(covariateSettings$optimalTopicValue == FALSE){
+            optimalNumberOfTopic = NULL
             lda_model = text2vec::LDA$new(n_topics = covariateSettings$numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
         }
 
@@ -203,8 +201,10 @@ buildTopicModeling<-function(connection,
         stop("Aggregation not supported")
 
     result <- list(topicModel = lda_model,
-                   wordList = rowIdMappingDf,
-                   nGramSetting = nGramSetting,
+                   topicDistr = doc_topic_distr,
+                   wordList = wordlist,
+                   rowIdList = rowIdMappingDf,
+                   nGramSetting = covariateSettings$nGram,
                    optimalNumberOfTopic = optimalNumberOfTopic)
 
     return(result)

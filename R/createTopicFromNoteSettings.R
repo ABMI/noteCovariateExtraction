@@ -9,7 +9,7 @@
 createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                                         noteConceptId = c(44814637),
                                         useDictionary=TRUE,
-                                        targetLanguage = c('KOR','ENG'),
+                                        targetLanguage = c('KOR','ENG','JAR'),
                                         limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
                                         nGram = 1L,
                                         buildTopicModeling= FALSE,
@@ -26,6 +26,8 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
     #if(!useDictionary) stop('Currently you should use at least one dictionary to extract medical terms only')
     if ( sum(limitedMedicalTermOnlyLanguage %in% targetLanguage==FALSE)>=1 ) stop (paste('Select dictionary among target Languages :',
                                                                                          paste(targetLanguage,collapse=" ")))
+    if (sum(targetLanguage %in% limitedMedicalTermOnlyLanguage) != length(targetLanguage)) stop("It contains an unimplemented language.
+                                                                                                Implemented languages are c ('KOR', 'ENG').")
     if (sum (useTextToVec,useTopicModeling,useGloVe,useAutoencoder) != 1 ) {
         stop("Choose only one among useTextToVec,useTopicModeling,useGloVe,useAutoencoder")
     }

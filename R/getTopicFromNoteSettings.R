@@ -92,9 +92,9 @@ getTopicFromNoteSettings <- function(connection,
     covariateId <- rawcovariateId
 
     #Configuring covariate
-    rowIdMappingDf<- data.frame('num' = rep(1:length(rawCovariates$rowId)),'rowId' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
+    rowIdMappingDf<- data.frame('rowId' = rep(1:length(rawCovariates$rowId)),'num' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
 
-    names(covariateId) <- rowIdMappingDf$'num'
+    names(covariateId) <- rowIdMappingDf$'rowId'
     #names(covariateId) <- rawCovariates$rowId[1:length(rawCovariates$rowId)]
 
     covariates <- reshape2::melt(data = covariateId)
@@ -140,7 +140,7 @@ getTopicFromNoteSettings <- function(connection,
         if(covariateSettings$optimalTopicValue == TRUE){
             library(topicmodels)
 
-            best.model <- lapply(seq(50,200, by=1), function(k){LDA(data, k)})
+            best.model <- lapply(seq(50,200, by=10), function(k){LDA(data, k)})
             best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, logLik)))
             best.model.logLik.df <- data.frame(topics=c(50:200), LL=as.numeric(as.matrix(best.model.logLik)))
 
