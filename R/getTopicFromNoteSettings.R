@@ -92,10 +92,9 @@ getTopicFromNoteSettings <- function(connection,
     covariateId <- rawcovariateId
 
     #Configuring covariate
-    rowIdMappingDf<- data.frame('rowId' = rep(1:length(rawCovariates$rowId)),'num' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
+    rowIdMappingDf<- data.frame('rowId' = rep(1:length(rawCovariates$rowId)),'subject_id' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
 
     names(covariateId) <- rowIdMappingDf$'rowId'
-    #names(covariateId) <- rawCovariates$rowId[1:length(rawCovariates$rowId)]
 
     covariates <- reshape2::melt(data = covariateId)
     colnames(covariates) <- c('covariateId','rowId')
@@ -122,43 +121,115 @@ getTopicFromNoteSettings <- function(connection,
     }
 
     if(covariateSettings$useTopicModeling == TRUE){
-        covariates$covariateId<-as.numeric(as.factor(covariates$covariateId))
+        if (!is.null(covariateSettings$existingTopicModel)) {
+            mergedCov<-merge(covariates,covariateSettings$existingTopicModel$wordList,by.x="covariateId",by.y = "words")
 
-        data <- Matrix::sparseMatrix(i=covariates$rowId,
-                                     j=covariates$covariateId,
-                                     x=covariates$covariateValue, #add 0.1 to avoid to treated as binary values
-                                     dims=c(max(covariates$rowId), max(covariates$covariateId))) # edit this to max(map$newIds)
+            covariateIdInt<-as.numeric(mergedCov$level)
 
-        colnames(data) <- as.numeric(paste0(9999,seq(levels(covariateId.factor)) ))
+            #It also adds words that are missing to match the shape of the mattress
+            missingWord <- setdiff(covariateSettings$existingTopicModel$wordList$level,unique(covariateIdInt))
+
+            data <- Matrix::sparseMatrix(i=mergedCov$rowId,
+                                         j=covariateIdInt,
+                                         x=mergedCov$covariateValue, #add 0.1 to avoid to treated as binary values
+                                         dims=c(max(mergedCov$rowId), max(nrow(covariateSettings$existingTopicModel$wordList)))) # edit this to max(map$newIds)
+
+            colnames(data) <- as.numeric(paste0(9999,c(unique(mergedCov$level),missingWord) ))
+
+            ##Topic Modeling
 
 
-        ##Topic Modeling
+            # rowTotals <- apply(dtm , 1, sum)
+            # dtm.new   <- dtm[rowTotals> 0, ]
+            if(covariateSettings$optimalTopicValue == TRUE){
+                library(topicmodels)
+
+                best.model <- lapply(seq(50,200, by=10), function(k){LDA(data, k)})
+                best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, logLik)))
+                best.model.logLik.df <- data.frame(topics=c(50:200), LL=as.numeric(as.matrix(best.model.logLik)))
+
+                optimal = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
+
+                detach("package:topicmodels", unload=TRUE)
+
+                lda_model = text2vec::LDA$new(n_topics = optimal, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+            }
+            else if(covariateSettings$optimalTopicValue == FALSE){
+                lda_model = text2vec::LDA$new(n_topics = covariateSettings$numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
+            }
+
+            doc_topic_distr = lda_model$fit_transform(x = data, n_iter = 1000,
+                                                      convergence_tol = 0.001, n_check_convergence = 25,
+                                                      progressbar = FALSE)
+
+            doc_topic_distr_df <- data.frame(doc_topic_distr)
 
 
-        # rowTotals <- apply(dtm , 1, sum)
-        # dtm.new   <- dtm[rowTotals> 0, ]
-        if(covariateSettings$optimalTopicValue == TRUE){
-            library(topicmodels)
 
-            best.model <- lapply(seq(50,200, by=10), function(k){LDA(data, k)})
-            best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, logLik)))
-            best.model.logLik.df <- data.frame(topics=c(50:200), LL=as.numeric(as.matrix(best.model.logLik)))
+            covariateIds<-as.numeric(paste0(9999,as.numeric(1:length(doc_topic_distr_df))))
+            colnames(doc_topic_distr_df)<-covariateIds
+            doc_topic_distr_df$rowId<- seq(max(covariates$rowId))
 
-            optimal = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
+            covariates<-reshape2::melt(doc_topic_distr_df,id.var = "rowId",
+                                       variable.name="covariateId",
+                                       value.name = "covariateValue")
 
-            detach("package:topicmodels", unload=TRUE)
+            covariates$covariateId<-as.numeric(as.character(covariates$covariateId))
+            covariates<-covariates[covariates$covariateValue!=0,]
+            covariates<-ff::as.ffdf(covariates)
 
-            lda_model = text2vec::LDA$new(n_topics = optimal, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+            ##need to remove 0
+            covariateRef  <- data.frame(covariateId = covariateIds,
+                                        covariateName = paste0("Topic",covariateIds),
+                                        analysisId = 0,
+                                        conceptId = 0)
+
+            covariateRef <- ff::as.ffdf(covariateRef)
+
+
+        } else {
+            # numberOfTopics = existingTopicModel$numberOfTopics
+            # topicModel = existingTopicModel$topicModel
+
+            covariatesInt<-as.numeric(as.factor(covariates$covariateId))
+
+            data <- Matrix::sparseMatrix(i=covariates$rowId,
+                                         j=covariatesInt,
+                                         x=covariates$covariateValue, #add 0.1 to avoid to treated as binary values
+                                         dims=c(max(covariates$rowId), max(covariatesInt))) # edit this to max(map$newIds)
+
+            colnames(data) <- as.numeric(paste0(9999,seq(levels(covariateId.factor)) ))
+
+
+            ##Topic Modeling
+
+
+            # rowTotals <- apply(dtm , 1, sum)
+            # dtm.new   <- dtm[rowTotals> 0, ]
+            if(covariateSettings$optimalTopicValue == TRUE){
+                library(topicmodels)
+
+                best.model <- lapply(seq(50,200, by=10), function(k){LDA(data, k)})
+                best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, logLik)))
+                best.model.logLik.df <- data.frame(topics=c(50:200), LL=as.numeric(as.matrix(best.model.logLik)))
+
+                optimal = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
+
+                detach("package:topicmodels", unload=TRUE)
+
+                lda_model = text2vec::LDA$new(n_topics = optimal, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+            }
+            else if(covariateSettings$optimalTopicValue == FALSE){
+                lda_model = text2vec::LDA$new(n_topics = covariateSettings$numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
+            }
+
+            doc_topic_distr = lda_model$fit_transform(x = data, n_iter = 1000,
+                                                      convergence_tol = 0.001, n_check_convergence = 25,
+                                                      progressbar = FALSE)
+
+            doc_topic_distr_df <- data.frame(doc_topic_distr)
         }
-        else if(covariateSettings$optimalTopicValue == FALSE){
-            lda_model = text2vec::LDA$new(n_topics = covariateSettings$numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
-        }
 
-        doc_topic_distr = lda_model$fit_transform(x = data, n_iter = 1000,
-                                                  convergence_tol = 0.001, n_check_convergence = 25,
-                                                  progressbar = FALSE)
-
-        doc_topic_distr_df <- data.frame(doc_topic_distr)
 
         covariateIds<-as.numeric(paste0(9999,as.numeric(1:length(doc_topic_distr_df))))
         colnames(doc_topic_distr_df)<-covariateIds

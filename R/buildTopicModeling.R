@@ -90,7 +90,6 @@ buildTopicModeling<-function(connection,
     rowIdMappingDf<- data.frame('rowId' = rep(1:length(rawCovariates$rowId)),'num' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
 
     names(covariateId) <- rowIdMappingDf$'rowId'
-    #names(covariateId) <- rawCovariates$rowId[1:length(rawCovariates$rowId)]
 
     covariates <- reshape2::melt(data = covariateId)
     colnames(covariates) <- c('covariateId','rowId')
@@ -200,12 +199,13 @@ buildTopicModeling<-function(connection,
     if (aggregated)
         stop("Aggregation not supported")
 
+
     result <- list(topicModel = lda_model,
                    topicDistr = doc_topic_distr,
-                   wordList = wordlist,
+                   wordList = data.frame(level=seq(levels(covariateId.factor)), words=as.character(levels(covariateId.factor))),
                    rowIdList = rowIdMappingDf,
                    nGramSetting = covariateSettings$nGram,
                    optimalNumberOfTopic = optimalNumberOfTopic)
-
+    saveRDS(result,paste0(workingFolder,'/inst/rds/TopicModel.rds'))
     return(result)
 }
