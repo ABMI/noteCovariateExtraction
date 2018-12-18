@@ -6,7 +6,8 @@
 #' @export
 #' @examples
 #' notePreprocessing()
-notePreprocessing <- function(covariateId,useDictionary =TRUE, targetLanguage = covariateSettings$targetLanguage){
+#'
+notePreprocessing <- function(covariateId,notUseWordSequence = (covariateSettings$useTextToVec|covariateSettings$useTopicModeling), targetLanguage = covariateSettings$targetLanguage){
 
     covariateId <- gsub('<[^<>]*>',' ',covariateId) #Remove Tag
 
@@ -32,14 +33,15 @@ notePreprocessing <- function(covariateId,useDictionary =TRUE, targetLanguage = 
     covariateId <- stringr::str_replace_all(covariateId,"[[:space:]]{1,}"," ")
 
     covariateId <- sub(' ','',covariateId)
-
-    if(covariateSettings$nGram >= 2){
-        covariateId <- lapply(covariateId, function(x) gsub(' ','',unlist(lapply(RWeka::NGramTokenizer(x, RWeka::Weka_control(min=1, max=covariateSettings$nGram)), paste0, collapse = ""))))
-        covariateId <- lapply(covariateId, unique)
-    }
-    else{
-        covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
-        covariateId <- lapply(covariateId, unique)
+    if(notUseWordSequence == TRUE){
+        if(covariateSettings$nGram >= 2){
+            covariateId <- lapply(covariateId, function(x) gsub(' ','',unlist(lapply(RWeka::NGramTokenizer(x, RWeka::Weka_control(min=1, max=covariateSettings$nGram)), paste0, collapse = ""))))
+            covariateId <- lapply(covariateId, unique)
+        }
+        else{
+            covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
+            covariateId <- lapply(covariateId, unique)
+        }
     }
 
     return(covariateId)
