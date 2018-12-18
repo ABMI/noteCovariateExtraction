@@ -84,14 +84,12 @@ buildTopicModeling<-function(connection,
         }
     }
 
-    covariateId <- rawcovariateId
-
     #Configuring covariate
     rowIdMappingDf<- data.frame('rowId' = rep(1:length(rawCovariates$rowId)),'num' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
 
-    names(covariateId) <- rowIdMappingDf$'rowId'
+    names(rawcovariateId) <- rowIdMappingDf$'rowId'
 
-    covariates <- reshape2::melt(data = covariateId)
+    covariates <- reshape2::melt(data = rawcovariateId)
     colnames(covariates) <- c('covariateId','rowId')
     covariates$rowId <- as.numeric(covariates$rowId)
     covariateValue <- rep(1,nrow(covariates))
@@ -103,7 +101,6 @@ buildTopicModeling<-function(connection,
 
     covariateId.factor<-as.factor(covariates$covariateId)
 
-    #rowIds<-levels(as.factor(covariates$rowId))
     if(covariateSettings$useTextToVec == TRUE){
         ##Text2Vec
         covariates$covariateId<-as.numeric(paste0(9999,as.numeric(covariateId.factor)))
@@ -126,24 +123,19 @@ buildTopicModeling<-function(connection,
 
         colnames(data) <- as.numeric(paste0(9999,seq(levels(covariateId.factor)) ))
 
-
-        ##Topic Modeling
-
-
-        # rowTotals <- apply(dtm , 1, sum)
-        # dtm.new   <- dtm[rowTotals> 0, ]
         if(covariateSettings$optimalTopicValue == TRUE){
-            library(topicmodels)
 
-            best.model <- lapply(seq(50,200, by=1), function(k){LDA(data, k)})
-            best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, logLik)))
-            best.model.logLik.df <- data.frame(topics=c(50:200), LL=as.numeric(as.matrix(best.model.logLik)))
+            topicLange <- seq(1,101, by=10)
 
-            optimal = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
+            best.model <- lapply(topicLange, function(k){topicmodels::LDA(data, k)})
+            best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, topicmodels::logLik)))
+            best.model.logLik.df <- data.frame(topics=topicLange, LL=as.numeric(as.matrix(best.model.logLik)))
+
+            optimalNumberOfTopic = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
 
             detach("package:topicmodels", unload=TRUE)
 
-            lda_model = text2vec::LDA$new(n_topics = optimal, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+            lda_model = text2vec::LDA$new(n_topics = optimalNumberOfTopic, doc_topic_prior = 0.1, topic_word_prior = 0.01)
         }
         else if(covariateSettings$optimalTopicValue == FALSE){
             optimalNumberOfTopic = NULL
@@ -206,6 +198,18 @@ buildTopicModeling<-function(connection,
                    rowIdList = rowIdMappingDf,
                    nGramSetting = covariateSettings$nGram,
                    optimalNumberOfTopic = optimalNumberOfTopic)
-    saveRDS(result,paste0(workingFolder,'/inst/rds/TopicModel.rds'))
+
+    # saveRDS(result,paste0(getwd(),'/data/BaseData/TopicModel_',
+    #                       paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
+    #                       '_',
+    #                       paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
+    #                       '.rds'))
+
+    saveRDS(result,paste0(getwd(),'/data/CustomData/TopicModel_',
+                          paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
+                          '_',
+                          paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
+                          '.rds'))
+
     return(result)
 }
