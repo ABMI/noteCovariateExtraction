@@ -1,1 +1,6 @@
 exportPattern("^[[:alpha:]]+")
+export(createTopicFromNoteSettings)
+export(getTopicFromNoteSettings)
+export(dictionaryForLanguage)
+export(notePreprocessing)
+export(loadDefaultTopicModel)

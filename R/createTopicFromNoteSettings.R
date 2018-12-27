@@ -15,7 +15,6 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                                         buildTopicModeling= FALSE,
                                         buildTopidModelMinFrac = 0.01,
                                         existingTopicModel = NULL,
-                                        useCustomTopicModel = FALSE,
                                         useTextToVec = FALSE,
                                         useTopicModeling=FALSE,
                                         numberOfTopics=10L,
@@ -36,11 +35,6 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
     if(!(useTextToVec|useTopicModeling) & !(nGram > 1)){
         stop('Use ngram only for useTextToVec,useTopicModeling')
     }
-    if(!(class(existingTopicModel) == 'list' | class(existingTopicModel) == 'NULL')){
-        stop('existingTopicModel class is list or NULL,
-             defalut value is NULL,
-             if you have topicmodel.rds, write list(noteConceptId Value, targetLanguage Value)')
-    }
 
     covariateSettings <- list(useTopicFromNote = useTopicFromNote,
                               noteConceptId = noteConceptId,
@@ -49,8 +43,7 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                               nGram=nGram,
                               buildTopicModeling = buildTopicModeling,
                               buildTopidModelMinFrac = buildTopidModelMinFrac,
-                              existingTopicModel = if(!is.null(existingTopicModel)){readRDS(loadDefaultTopicModel(existingTopicModel,useCustomTopicModel))},
-                              useCustomTopicModel = useCustomTopicModel,
+                              existingTopicModel = existingTopicModel,
                               targetLanguage = targetLanguage,
                               useTextToVec=useTextToVec,
                               useTopicModeling=useTopicModeling,
@@ -71,22 +64,19 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
 
 #' Custom createCoveriate Settings
 #'
-#' This function is Custom createCoveriate Settings.
-#' @param existingTopicModel,useCustomTopicModel
+#' This function is loading existing topic modelCustom createCoveriate Settings.
+#' @param existingTopicModel,useCustomTopicModel,useModel
 #' @keywordsa createCovariateSetting
 #' @export
 #' @examples
 #' loadDefaultTopicModel()
-loadDefaultTopicModel<-function(existingTopicModel,useCustomTopicModel){
-    if(useCustomTopicModel == FALSE){
-        TopicModelFileName <- paste0(getwd(),'/data/BaseData/TopicModel_',
-                              paste0(unlist(lapply(lapply(lapply(existingTopicModel, function(x) sort(x)), function(x) paste0(x,collapse = ',')), function(x) paste0('(',x,')'))),collapse = '_'),
-                              '.rds')
+loadDefaultTopicModel<-function(noteConceptId = c(44814637),
+                                targetLanguage = c('KOR','ENG'),
+                                useModel = 'base'){
+    if(useModel == 'base'){
+        return(readRDS(system.file("BaseData", paste0("TopicModel_(",noteConceptId,")_(",paste(sort(targetLanguage),collapse = ','),").rds"),package = 'noteCovariateExtraction')))
     }
-    else{
-        TopicModelFileName <- paste0(getwd(),'/data/CustomData/TopicModel_',
-                              paste0(unlist(lapply(lapply(lapply(existingTopicModel, function(x) sort(x)), function(x) paste0(x,collapse = ',')), function(x) paste0('(',x,')'))),collapse = '_'),
-                              '.rds')
+    else if(useModel == 'custom'){
+        return(readRDS(system.file("CustomData", paste0("TopicModel_(",noteConceptId,")_(",paste(sort(targetLanguage),collapse = ','),").rds"),package = 'noteCovariateExtraction')))
     }
-    return(TopicModelFileName)
 }

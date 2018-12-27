@@ -204,15 +204,19 @@ buildTopicModeling<-function(connection,
 
     }
 
-    # saveRDS(result,paste0(getwd(),'/inst/BaseData/TopicModel_',
-    #                       paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
-    #                       '_',
-    #                       paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
-    #                       '.rds'))
+    saveRDS(result,paste0(getwd(),'/inst/BaseData/TopicModel_',
+                          paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
+                          '_',
+                          paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
+                          '.rds'))
 
-    saveRDS(result,file.path(system.file("CustomData",package = 'noteCovariateExtraction'),
-                             paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
-                                    paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
+    # saveRDS(result,file.path(system.file("CustomData",package = 'noteCovariateExtraction'),
+    #                          paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
+    #                                 paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
+    #
+    message(paste('your CustomTopicModel name is',paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
+            paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
+
     return(result)
 }
 
