@@ -199,17 +199,21 @@ buildTopicModeling<-function(connection,
                    nGramSetting = covariateSettings$nGram,
                    optimalNumberOfTopic = optimalNumberOfTopic)
 
-    # saveRDS(result,paste0(getwd(),'/data/BaseData/TopicModel_',
+    if(!dir.exists(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'))){
+        dir.create(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'),recursive = T)
+
+    }
+
+    # saveRDS(result,paste0(getwd(),'/inst/BaseData/TopicModel_',
     #                       paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
     #                       '_',
     #                       paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
     #                       '.rds'))
 
-    saveRDS(result,paste0(getwd(),'/data/CustomData/TopicModel_',
-                          paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
-                          '_',
-                          paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
-                          '.rds'))
-
+    saveRDS(result,file.path(system.file("CustomData",package = 'noteCovariateExtraction'),
+                             paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
+                                    paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
     return(result)
 }
+
+
