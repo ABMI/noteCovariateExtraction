@@ -24,6 +24,7 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                                         useAutoencoder=FALSE,
                                         latentDimensionForAutoEncoder = 100L,
                                         sampleSize=-1){
+
     #if(!useDictionary) stop('Currently you should use at least one dictionary to extract medical terms only')
     if ( sum(limitedMedicalTermOnlyLanguage %in% targetLanguage==FALSE)>=1 ) stop (paste('Select dictionary among target Languages :',
                                                                                          paste(targetLanguage,collapse=" ")))
