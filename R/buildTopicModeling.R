@@ -230,12 +230,13 @@ buildTopicModeling<-function(connection,
         stop("Aggregation not supported")
 
 
-    result <- list(topicModel = lda_model,
-                   topicDistr = doc_topic_distr,
-                   wordList = data.frame(level=seq(levels(covariateId.factor)), words=as.character(levels(covariateId.factor))),
-                   rowIdList = rowIdMappingDf,
-                   nGramSetting = covariateSettings$nGram,
-                   optimalNumberOfTopic = optimalNumberOfTopic)
+    result <- list(#topicModel = lda_model,
+                   #topicDistr = doc_topic_distr,
+                   wordList = data.frame(level=seq(levels(covariateId.factor)), words=as.character(levels(covariateId.factor)))#,
+                   #rowIdList = rowIdMappingDf,
+                   #nGramSetting = covariateSettings$nGram,
+                   #optimalNumberOfTopic = optimalNumberOfTopic
+                   )
 
     if(!dir.exists(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'))){
         dir.create(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'),recursive = T)
