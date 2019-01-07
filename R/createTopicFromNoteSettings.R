@@ -1,7 +1,7 @@
 #' Custom createCoveriate Settings
 #'
 #' This function is Custom createCoveriate Settings.
-#' @param useTopicFromNote use = TURE, not use = FALSE
+#' @param useTopicFromNote,noteConceptId,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage
 #' @keywordsa createCovariateSetting
 #' @export
 #' @examples
@@ -24,6 +24,7 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                                         useAutoencoder=FALSE,
                                         latentDimensionForAutoEncoder = 100L,
                                         sampleSize=-1){
+
     #if(!useDictionary) stop('Currently you should use at least one dictionary to extract medical terms only')
     if ( sum(limitedMedicalTermOnlyLanguage %in% targetLanguage==FALSE)>=1 ) stop (paste('Select dictionary among target Languages :',
                                                                                          paste(targetLanguage,collapse=" ")))
@@ -35,6 +36,7 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
     if(!(useTextToVec|useTopicModeling) & !(nGram > 1)){
         stop('Use ngram only for useTextToVec,useTopicModeling')
     }
+
     covariateSettings <- list(useTopicFromNote = useTopicFromNote,
                               noteConceptId = noteConceptId,
                               useDictionary=useDictionary,
@@ -42,7 +44,7 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
                               nGram=nGram,
                               buildTopicModeling = buildTopicModeling,
                               buildTopidModelMinFrac = buildTopidModelMinFrac,
-                              existingTopicModel = if(is.null(existingTopicModel)){existingTopicModel = NULL}else{readRDS(existingTopicModel)},
+                              existingTopicModel = existingTopicModel,
                               targetLanguage = targetLanguage,
                               useTextToVec=useTextToVec,
                               useTopicModeling=useTopicModeling,
@@ -59,4 +61,23 @@ createTopicFromNoteSettings <- function(useTopicFromNote = TRUE,
     }
     class(covariateSettings) <- 'covariateSettings'
     return(covariateSettings)
+}
+
+#' Custom createCoveriate Settings
+#'
+#' This function is loading existing topic modelCustom createCoveriate Settings.
+#' @param existingTopicModel,useCustomTopicModel,useModel
+#' @keywordsa createCovariateSetting
+#' @export
+#' @examples
+#' loadDefaultTopicModel()
+loadDefaultTopicModel<-function(noteConceptId = c(44814637),
+                                targetLanguage = c('KOR','ENG'),
+                                useModel = 'base'){
+    if(useModel == 'base'){
+        return(readRDS(system.file("BaseData", paste0("TopicModel_(",noteConceptId,")_(",paste(sort(targetLanguage),collapse = ','),").rds"),package = 'noteCovariateExtraction')))
+    }
+    else if(useModel == 'custom'){
+        return(readRDS(system.file("CustomData", paste0("TopicModel_(",noteConceptId,")_(",paste(sort(targetLanguage),collapse = ','),").rds"),package = 'noteCovariateExtraction')))
+    }
 }

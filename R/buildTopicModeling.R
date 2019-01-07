@@ -53,7 +53,45 @@ buildTopicModeling<-function(connection,
 
     #ff in list #because Characters can not be inserted into the ff package.
     rawcovariateId <- ff::ffapply(x[i1:i2],X= rawCovariates$covariateId, RETURN=TRUE, CFUN="list",
-                                  AFUN = notePreprocessing)
+                                  AFUN = notePreprocessing <- function(covariateId){
+
+                                      covariateId <- gsub('<[^<>]*>',' ',covariateId) #Remove Tag
+
+                                      #Remove html special characters
+                                      covariateId <- gsub('&#x0D;', " ", covariateId)
+                                      covariateId <- gsub('&lt;', " ", covariateId)
+                                      covariateId <- gsub('&gt;', " ", covariateId)
+                                      covariateId <- gsub('&amp;', " ", covariateId)
+                                      covariateId <- gsub('&quot;', " ", covariateId)
+
+                                      #####At least one should be included.
+                                      #KOR PreProcessing
+                                      if('KOR' %in% covariateSettings$targetLanguage){
+                                          #remove hangle typo
+                                          covariateId <- gsub('[\u314f-\u3163]*','',covariateId)
+                                          covariateId <- gsub('[\u3131-\u314E]*','',covariateId)
+
+                                          #Only Korean and English are left. (remove special characters)
+                                          covariateId <- gsub('[^\uac00-\ud7a3a-zA-Z]',' ',covariateId)
+                                      }
+
+                                      #The spacing is only once                                                               ## vector
+                                      covariateId <- stringr::str_replace_all(covariateId,"[[:space:]]{1,}"," ")
+
+                                      covariateId <- sub(' ','',covariateId)
+                                      if(covariateSettings$useTextToVec|covariateSettings$useTopicModeling == TRUE){
+                                          if(covariateSettings$nGram >= 2){
+                                              covariateId <- lapply(covariateId, function(x) gsub(' ','',unlist(lapply(RWeka::NGramTokenizer(x, RWeka::Weka_control(min=1, max=covariateSettings$nGram)), paste0, collapse = ""))))
+                                              covariateId <- lapply(covariateId, unique)
+                                          }
+                                          else{
+                                              covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
+                                              covariateId <- lapply(covariateId, unique)
+                                          }
+                                      }
+
+                                      return(covariateId)
+                                  })
 
     names(rawcovariateId) <- 'note'
     rawcovariateId <- rawcovariateId$'note'
@@ -84,14 +122,12 @@ buildTopicModeling<-function(connection,
         }
     }
 
-    covariateId <- rawcovariateId
-
     #Configuring covariate
     rowIdMappingDf<- data.frame('rowId' = rep(1:length(rawCovariates$rowId)),'num' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
 
-    names(covariateId) <- rowIdMappingDf$'rowId'
+    names(rawcovariateId) <- rowIdMappingDf$'rowId'
 
-    covariates <- reshape2::melt(data = covariateId)
+    covariates <- reshape2::melt(data = rawcovariateId)
     colnames(covariates) <- c('covariateId','rowId')
     covariates$rowId <- as.numeric(covariates$rowId)
     covariateValue <- rep(1,nrow(covariates))
@@ -103,7 +139,6 @@ buildTopicModeling<-function(connection,
 
     covariateId.factor<-as.factor(covariates$covariateId)
 
-    #rowIds<-levels(as.factor(covariates$rowId))
     if(covariateSettings$useTextToVec == TRUE){
         ##Text2Vec
         covariates$covariateId<-as.numeric(paste0(9999,as.numeric(covariateId.factor)))
@@ -126,24 +161,19 @@ buildTopicModeling<-function(connection,
 
         colnames(data) <- as.numeric(paste0(9999,seq(levels(covariateId.factor)) ))
 
-
-        ##Topic Modeling
-
-
-        # rowTotals <- apply(dtm , 1, sum)
-        # dtm.new   <- dtm[rowTotals> 0, ]
         if(covariateSettings$optimalTopicValue == TRUE){
-            library(topicmodels)
 
-            best.model <- lapply(seq(50,200, by=1), function(k){LDA(data, k)})
-            best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, logLik)))
-            best.model.logLik.df <- data.frame(topics=c(50:200), LL=as.numeric(as.matrix(best.model.logLik)))
+            topicLange <- seq(1,101, by=10)
 
-            optimal = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
+            best.model <- lapply(topicLange, function(k){topicmodels::LDA(data, k)})
+            best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, topicmodels::logLik)))
+            best.model.logLik.df <- data.frame(topics=topicLange, LL=as.numeric(as.matrix(best.model.logLik)))
+
+            optimalNumberOfTopic = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
 
             detach("package:topicmodels", unload=TRUE)
 
-            lda_model = text2vec::LDA$new(n_topics = optimal, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+            lda_model = text2vec::LDA$new(n_topics = optimalNumberOfTopic, doc_topic_prior = 0.1, topic_word_prior = 0.01)
         }
         else if(covariateSettings$optimalTopicValue == FALSE){
             optimalNumberOfTopic = NULL
@@ -200,12 +230,33 @@ buildTopicModeling<-function(connection,
         stop("Aggregation not supported")
 
 
-    result <- list(topicModel = lda_model,
-                   topicDistr = doc_topic_distr,
-                   wordList = data.frame(level=seq(levels(covariateId.factor)), words=as.character(levels(covariateId.factor))),
-                   rowIdList = rowIdMappingDf,
-                   nGramSetting = covariateSettings$nGram,
-                   optimalNumberOfTopic = optimalNumberOfTopic)
-    saveRDS(result,paste0(workingFolder,'/inst/rds/TopicModel.rds'))
+    result <- list(#topicModel = lda_model,
+                   #topicDistr = doc_topic_distr,
+                   wordList = data.frame(level=seq(levels(covariateId.factor)), words=as.character(levels(covariateId.factor)))#,
+                   #rowIdList = rowIdMappingDf,
+                   #nGramSetting = covariateSettings$nGram,
+                   #optimalNumberOfTopic = optimalNumberOfTopic
+                   )
+
+    if(!dir.exists(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'))){
+        dir.create(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'),recursive = T)
+
+    }
+
+    saveRDS(result,paste0(getwd(),'/inst/BaseData/TopicModel_',
+                          paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
+                          '_',
+                          paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
+                          '.rds'))
+
+    # saveRDS(result,file.path(system.file("CustomData",package = 'noteCovariateExtraction'),
+    #                          paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
+    #                                 paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
+    #
+    message(paste('your CustomTopicModel name is',paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
+            paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
+
     return(result)
 }
+
+
