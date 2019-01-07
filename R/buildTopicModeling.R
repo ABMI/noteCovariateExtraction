@@ -96,13 +96,16 @@ buildTopicModeling<-function(connection,
     names(rawcovariateId) <- 'note'
     rawcovariateId <- rawcovariateId$'note'
 
-    if(covariateSettings$buildTopidModelMinFrac != 0){
+    if( (covariateSettings$buildTopidModelMinFrac != 0) | (covariateSettings$buildTopidModelMaxFrac != 1)){
         MinValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMinFrac)
+        MaxValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMaxFrac)
 
-        MoreThanMin <- data.frame(table(unlist(rawcovariateId)),stringsAsFactors = F)
-        MoreThanMinWord <- as.vector(MoreThanMin[MoreThanMin$'Freq'>=MinValue,1])
+        wordFreq <- data.frame(table(unlist(rawcovariateId)),stringsAsFactors = F)
+        MoreThanMinWord <- wordFreq[wordFreq$'Freq'>=MinValue,]
+        MoreThanMinLessThanMaxWord <- MoreThanMinWord[MoreThanMinWord$'Freq'<=MaxValue,]
+        MoreThanMinLessThanMaxWordVec<-as.vector(MoreThanMinLessThanMaxWord[,1])
 
-        rawcovariateId<-lapply(rawcovariateId, function(x) intersect(x, MoreThanMinWord))
+        rawcovariateId<-lapply(rawcovariateId, function(x) intersect(x, MoreThanMinLessThanMaxWordVec))
 
     }
 
@@ -169,15 +172,16 @@ buildTopicModeling<-function(connection,
             best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, topicmodels::logLik)))
             best.model.logLik.df <- data.frame(topics=topicLange, LL=as.numeric(as.matrix(best.model.logLik)))
 
-            optimalNumberOfTopic = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
+            numberOfTopics = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
 
             detach("package:topicmodels", unload=TRUE)
 
-            lda_model = text2vec::LDA$new(n_topics = optimalNumberOfTopic, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+            lda_model = text2vec::LDA$new(n_topics = numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01)
         }
         else if(covariateSettings$optimalTopicValue == FALSE){
-            optimalNumberOfTopic = NULL
-            lda_model = text2vec::LDA$new(n_topics = covariateSettings$numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
+            numberOfTopics = covariateSettings$numberOfTopics
+
+            lda_model = text2vec::LDA$new(n_topics = numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
         }
 
         doc_topic_distr = lda_model$fit_transform(x = data, n_iter = 1000,
@@ -207,14 +211,6 @@ buildTopicModeling<-function(connection,
         covariateRef <- ff::as.ffdf(covariateRef)
     }
 
-    if(covariateSettings$useGloVe == TRUE){
-        stop("useGlove has not not supported yet")
-    }
-
-    if(covariateSettings$useAutoencoder == TRUE){
-        stop("useAutoencoder has not not supported yet")
-    }
-
     # Construct analysis reference:
     analysisRef <- data.frame(analysisId = 0,
                               analysisName = "Features from Note",
@@ -230,31 +226,32 @@ buildTopicModeling<-function(connection,
         stop("Aggregation not supported")
 
 
-    result <- list(#topicModel = lda_model,
+    result <- list(topicModel = lda_model,
                    #topicDistr = doc_topic_distr,
-                   wordList = data.frame(level=seq(levels(covariateId.factor)), words=as.character(levels(covariateId.factor)))#,
+                   wordList = data.frame(level=seq(levels(covariateId.factor)), words=as.character(levels(covariateId.factor))),
                    #rowIdList = rowIdMappingDf,
-                   #nGramSetting = covariateSettings$nGram,
-                   #optimalNumberOfTopic = optimalNumberOfTopic
+                   nGramSetting = covariateSettings$nGram,
+                   numberOfTopics = numberOfTopics
                    )
 
-    if(!dir.exists(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'))){
-        dir.create(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'),recursive = T)
+    saveRDS(result,covariateSettings$topicModelExportRds)
+    message(paste('your topic model is saved at',covariateSettings$topicModelExportRds))
 
-    }
-
-    saveRDS(result,paste0(getwd(),'/inst/BaseData/TopicModel_',
-                          paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
-                          '_',
-                          paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
-                          '.rds'))
+    # if(!dir.exists(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'))){
+    #     dir.create(file.path(system.file(package = 'noteCovariateExtraction'),'CustomData'),recursive = T)}
+    #
+    # saveRDS(result,paste0(getwd(),'/inst/BaseData/TopicModel_',
+    #                       paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),
+    #                       '_',
+    #                       paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),
+    #                       '.rds'))
 
     # saveRDS(result,file.path(system.file("CustomData",package = 'noteCovariateExtraction'),
     #                          paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
     #                                 paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
     #
-    message(paste('your CustomTopicModel name is',paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
-            paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
+    # message(paste('your CustomTopicModel name is',paste0('TopicModel_',paste0('(',paste0(sort(covariateSettings$noteConceptId),collapse = ','),')'),'_',
+    #         paste0('(',paste0(sort(covariateSettings$targetLanguage),collapse = ','),')'),'.rds')))
 
     return(result)
 }
