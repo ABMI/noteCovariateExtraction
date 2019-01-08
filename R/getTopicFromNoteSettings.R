@@ -81,16 +81,15 @@ getTopicFromNoteSettings <- function(connection,
                                           covariateId <- stringr::str_replace_all(covariateId,"[[:space:]]{1,}"," ")
 
                                           covariateId <- sub(' ','',covariateId)
-                                          if(covariateSettings$useTextToVec|covariateSettings$useTopicModeling == TRUE){
-                                              if(covariateSettings$nGram >= 2){
+
+                                          if(covariateSettings$nGram >= 2){
                                                   covariateId <- lapply(covariateId, function(x) gsub(' ','',unlist(lapply(RWeka::NGramTokenizer(x, RWeka::Weka_control(min=1, max=covariateSettings$nGram)), paste0, collapse = ""))))
                                                   covariateId <- lapply(covariateId, unique)
-                                              }
-                                              else{
+                                          }else{
                                                   covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
                                                   covariateId <- lapply(covariateId, unique)
-                                              }
                                           }
+
 
                                           return(covariateId)
                                       })
