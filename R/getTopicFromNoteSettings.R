@@ -170,35 +170,39 @@ getTopicFromNoteSettings <- function(connection,
                                          dims=c(max(mergedCov$rowId), max(nrow(covariateSettings$existingTopicModel$wordList)))) # edit this to max(map$newIds)
 
             colnames(data) <- as.numeric(paste0(9999,c(unique(mergedCov$level),missingWord) ))
+            lda_model = covariateSettings$existingTopicModel$topicModel
 
 
         } else {
-            covariatesInt<-as.numeric(as.factor(covariates$covariateId))
+            covariates$covariateId<-as.numeric(as.factor(covariates$covariateId))
 
             data <- Matrix::sparseMatrix(i=covariates$rowId,
-                                         j=covariatesInt,
+                                         j=covariates$covariateId,
                                          x=covariates$covariateValue, #add 0.1 to avoid to treated as binary values
-                                         dims=c(max(covariates$rowId), max(covariatesInt))) # edit this to max(map$newIds)
+                                         dims=c(max(covariates$rowId), max(covariates$covariateId))) # edit this to max(map$newIds)
 
             colnames(data) <- as.numeric(paste0(9999,seq(levels(covariateId.factor)) ))
 
-        }
-        if(covariateSettings$optimalTopicValue == TRUE){
+            if(covariateSettings$optimalTopicValue == TRUE){
 
-            topicLange <- seq(1,101, by=10)
+                topicLange <- seq(1,101, by=10)
 
-            best.model <- lapply(topicLange, function(k){topicmodels::LDA(data, k)})
-            best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, topicmodels::logLik)))
-            best.model.logLik.df <- data.frame(topics=topicLange, LL=as.numeric(as.matrix(best.model.logLik)))
+                best.model <- lapply(topicLange, function(k){topicmodels::LDA(data, k)})
+                best.model.logLik <- as.data.frame(as.matrix(lapply(best.model, topicmodels::logLik)))
+                best.model.logLik.df <- data.frame(topics=topicLange, LL=as.numeric(as.matrix(best.model.logLik)))
 
-            optimalNumberOfTopic = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
+                numberOfTopics = best.model.logLik.df[which.max(best.model.logLik.df$LL),]$topics
 
-            detach("package:topicmodels", unload=TRUE)
+                detach("package:topicmodels", unload=TRUE)
 
-            lda_model = text2vec::LDA$new(n_topics = optimalNumberOfTopic, doc_topic_prior = 0.1, topic_word_prior = 0.01)
-        }
-        else if(covariateSettings$optimalTopicValue == FALSE){
-            lda_model = text2vec::LDA$new(n_topics = covariateSettings$numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
+                lda_model = text2vec::LDA$new(n_topics = numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01)
+            }
+            else if(covariateSettings$optimalTopicValue == FALSE){
+                numberOfTopics = covariateSettings$numberOfTopics
+
+                lda_model = text2vec::LDA$new(n_topics = numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
+            }
+
         }
 
         doc_topic_distr = lda_model$fit_transform(x = data, n_iter = 1000,
@@ -230,13 +234,6 @@ getTopicFromNoteSettings <- function(connection,
         covariateRef <- ff::as.ffdf(covariateRef)
     }
 
-    if(covariateSettings$useGloVe == TRUE){
-        stop("useGlove has not not supported yet")
-    }
-
-    if(covariateSettings$useAutoencoder == TRUE){
-        stop("useAutoencoder has not not supported yet")
-    }
 
     # Construct analysis reference:
     analysisRef <- data.frame(analysisId = 0,
@@ -262,6 +259,3 @@ getTopicFromNoteSettings <- function(connection,
     return(result)
 
 }
-
-
-
