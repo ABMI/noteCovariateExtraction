@@ -65,17 +65,16 @@ buildTopicModeling<-function(connection,
                                       covariateId <- gsub('&quot;', " ", covariateId)
 
                                       #####At least one should be included.
-                                      #KOR PreProcessing
-                                      if('KOR' %in% covariateSettings$targetLanguage){
-                                          #remove hangle typo
-                                          covariateId <- gsub('[\u314f-\u3163]*','',covariateId)
-                                          covariateId <- gsub('[\u3131-\u314E]*','',covariateId)
 
-                                          #Only Korean and English are left. (remove special characters)
-                                          covariateId <- gsub('[^\uac00-\ud7a3a-zA-Z]',' ',covariateId)
-                                      }
+                                      #remove hangle typo
+                                      covariateId <- gsub('[\u314f-\u3163]*','',covariateId)
+                                      covariateId <- gsub('[\u3131-\u314E]*','',covariateId)
 
-                                      #The spacing is only once                                                               ## vector
+                                      #if add other language, add unicode
+                                      covariateId <- gsub('[^\uac00-\ud7a3a-zA-Z]',' ',covariateId)
+
+
+                                      #The spacing is only once
                                       covariateId <- stringr::str_replace_all(covariateId,"[[:space:]]{1,}"," ")
 
                                       covariateId <- sub(' ','',covariateId)
@@ -231,7 +230,8 @@ buildTopicModeling<-function(connection,
                    wordList = data.frame(level=seq(levels(covariateId.factor)), words=as.character(levels(covariateId.factor))),
                    #rowIdList = rowIdMappingDf,
                    nGramSetting = covariateSettings$nGram,
-                   numberOfTopics = numberOfTopics
+                   numberOfTopics = numberOfTopics,
+                   RdsFilePosition = covariateSettings$topicModelExportRds
                    )
 
     saveRDS(result,covariateSettings$topicModelExportRds)

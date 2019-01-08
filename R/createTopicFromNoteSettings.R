@@ -1,7 +1,7 @@
 #' Custom createCoveriate Settings
 #'
 #' This function is Custom createCoveriate Settings.
-#' @param useTopicFromNote,noteConceptId,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage
+#' @param noteConceptId,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage
 #' @keywordsa createCovariateSetting
 #' @export
 #' @examples
@@ -12,7 +12,7 @@ createTopicFromNoteSettings <- function(noteConceptId = c(44814637),
                                         topicModelExportRds = file.path(getwd(),"customTopicModel.rds"),
                                         useDictionary=TRUE,
                                         limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
-                                        nGram = c(1L,2L),
+                                        nGram = c(1L),
                                         buildTopidModelMinFrac = 0.001,
                                         buildTopidModelMaxFrac = 0.5,
                                         useTextToVec = FALSE,
@@ -75,11 +75,13 @@ createTopicFromNoteSettings <- function(noteConceptId = c(44814637),
 #' loadDefaultTopicModel()
 loadDefaultTopicModel<-function(noteConceptId = c(44814637),
                                 targetLanguage = c('KOR'),
+                                workingFile = file.path(getwd(),"customTopicModel.rds"),
                                 useModel = 'base'){
     if(useModel == 'base'){
         return(readRDS(system.file("BaseData", paste0("TopicModel_(",noteConceptId,")_(",paste(targetLanguage,collapse = ','),").rds"),package = 'noteCovariateExtraction')))
     }
     else if(useModel == 'custom'){
-        return(readRDS(system.file("CustomData", paste0("TopicModel_(",noteConceptId,")_(",paste(targetLanguage,collapse = ','),").rds"),package = 'noteCovariateExtraction')))
+        #return(readRDS(system.file("CustomData", paste0("TopicModel_(",noteConceptId,")_(",paste(targetLanguage,collapse = ','),").rds"),package = 'noteCovariateExtraction')))
+        return(readRDS(workingFile))
     }
 }
