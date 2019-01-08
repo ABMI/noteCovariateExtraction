@@ -23,9 +23,7 @@ getTopicFromNoteSettings <- function(connection,
                                      aggregated = FALSE){
 
     writeLines('Constructing TopicFromNote')
-    if (covariateSettings$useTopicFromNote == FALSE) {
-        return(NULL)
-    }
+
     #if (covariateSettings$useDictionary == TRUE){
     #SQL query should be revised to extract only the latest record
     #SQL to construct the covariate:
@@ -70,17 +68,16 @@ getTopicFromNoteSettings <- function(connection,
                                           covariateId <- gsub('&quot;', " ", covariateId)
 
                                           #####At least one should be included.
-                                          #KOR PreProcessing
-                                          if('KOR' %in% covariateSettings$targetLanguage){
-                                              #remove hangle typo
-                                              covariateId <- gsub('[\u314f-\u3163]*','',covariateId)
-                                              covariateId <- gsub('[\u3131-\u314E]*','',covariateId)
 
-                                              #Only Korean and English are left. (remove special characters)
-                                              covariateId <- gsub('[^\uac00-\ud7a3a-zA-Z]',' ',covariateId)
-                                          }
+                                          #remove hangle typo
+                                          covariateId <- gsub('[\u314f-\u3163]*','',covariateId)
+                                          covariateId <- gsub('[\u3131-\u314E]*','',covariateId)
 
-                                          #The spacing is only once                                                               ## vector
+                                          #if add other language, add unicode
+                                          covariateId <- gsub('[^\uac00-\ud7a3a-zA-Z]',' ',covariateId)
+
+
+                                          #The spacing is only once                                                           ## vector
                                           covariateId <- stringr::str_replace_all(covariateId,"[[:space:]]{1,}"," ")
 
                                           covariateId <- sub(' ','',covariateId)
@@ -100,13 +97,16 @@ getTopicFromNoteSettings <- function(connection,
     names(rawcovariateId) <- 'note'
     rawcovariateId <- rawcovariateId$'note'
 
-    if(covariateSettings$buildTopidModelMinFrac != 0){
+    if( (covariateSettings$buildTopidModelMinFrac != 0) | (covariateSettings$buildTopidModelMaxFrac != 1)){
         MinValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMinFrac)
+        MaxValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMaxFrac)
 
-        MoreThanMin <- data.frame(table(unlist(rawcovariateId)),stringsAsFactors = F)
-        MoreThanMinWord <- as.vector(MoreThanMin[MoreThanMin$'Freq'>=MinValue,1])
+        wordFreq <- data.frame(table(unlist(rawcovariateId)),stringsAsFactors = F)
+        MoreThanMinWord <- wordFreq[wordFreq$'Freq'>=MinValue,]
+        MoreThanMinLessThanMaxWord <- MoreThanMinWord[MoreThanMinWord$'Freq'<=MaxValue,]
+        MoreThanMinLessThanMaxWordVec<-as.vector(MoreThanMinLessThanMaxWord[,1])
 
-        rawcovariateId<-lapply(rawcovariateId, function(x) intersect(x, MoreThanMinWord))
+        rawcovariateId<-lapply(rawcovariateId, function(x) intersect(x, MoreThanMinLessThanMaxWordVec))
 
     }
 
