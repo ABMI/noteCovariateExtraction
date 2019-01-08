@@ -154,25 +154,7 @@ getTopicFromNoteSettings <- function(connection,
         covariateRef <- ff::as.ffdf(covariateRef)
     }
 
-    if(covariateSettings$useTopicModeling == TRUE){
-        if (!is.null(covariateSettings$existingTopicModel)) {
-            mergedCov<-merge(covariates,covariateSettings$existingTopicModel$wordList,by.x="covariateId",by.y = "words")
-
-            covariateIdInt<-as.numeric(mergedCov$level)
-
-            #It also adds words that are missing to match the shape of the mattress
-            missingWord <- setdiff(covariateSettings$existingTopicModel$wordList$level,unique(covariateIdInt))
-
-            data <- Matrix::sparseMatrix(i=mergedCov$rowId,
-                                         j=covariateIdInt,
-                                         x=mergedCov$covariateValue, #add 0.1 to avoid to treated as binary values
-                                         dims=c(max(mergedCov$rowId), max(nrow(covariateSettings$existingTopicModel$wordList)))) # edit this to max(map$newIds)
-
-            colnames(data) <- as.numeric(paste0(9999,c(unique(mergedCov$level),missingWord) ))
-            lda_model = covariateSettings$existingTopicModel$topicModel
-
-
-        } else {
+    if((covariateSettings$useTopicModeling == TRUE) & is.null(covariateSettings$existingTopicModel)){
             covariates$covariateId<-as.numeric(as.factor(covariates$covariateId))
 
             data <- Matrix::sparseMatrix(i=covariates$rowId,
@@ -201,8 +183,25 @@ getTopicFromNoteSettings <- function(connection,
 
                 lda_model = text2vec::LDA$new(n_topics = numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
             }
+    }
 
-        }
+    if (!is.null(covariateSettings$existingTopicModel)) {
+        mergedCov<-merge(covariates,covariateSettings$existingTopicModel$wordList,by.x="covariateId",by.y = "words")
+
+        covariateIdInt<-as.numeric(mergedCov$level)
+
+        #It also adds words that are missing to match the shape of the mattress
+        missingWord <- setdiff(covariateSettings$existingTopicModel$wordList$level,unique(covariateIdInt))
+
+        data <- Matrix::sparseMatrix(i=mergedCov$rowId,
+                                     j=covariateIdInt,
+                                     x=mergedCov$covariateValue, #add 0.1 to avoid to treated as binary values
+                                     dims=c(max(mergedCov$rowId), max(nrow(covariateSettings$existingTopicModel$wordList)))) # edit this to max(map$newIds)
+
+        colnames(data) <- as.numeric(paste0(9999,c(unique(mergedCov$level),missingWord) ))
+        lda_model = covariateSettings$existingTopicModel$topicModel
+
+    }
 
         doc_topic_distr = lda_model$fit_transform(x = data, n_iter = 1000,
                                                   convergence_tol = 0.001, n_check_convergence = 25,
