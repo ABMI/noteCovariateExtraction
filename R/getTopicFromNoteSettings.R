@@ -187,7 +187,7 @@ getTopicFromNoteSettings <- function(connection,
                                          x=covariates$covariateValue, #add 0.1 to avoid to treated as binary values
                                          dims=c(max(covariates$rowId), max(covariates$covariateId))) # edit this to max(map$newIds)
 
-            colnames(data) <- as.numeric(paste0(9999,seq(levels(as.factor(covariates$covariateId)))))
+            colnames(data) <- as.numeric(paste0(9999,wordList$num))
 
             if(covariateSettings$optimalTopicValue == TRUE){
 
