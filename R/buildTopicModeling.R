@@ -128,8 +128,10 @@ buildTopicModeling<-function(connection,
         #     dictionary <- quanteda::dictionary(list(lang1 = paste0(unlist(dictionaryForLanguage(language[1])),'*'),
         #                                             lang2 = paste0(unlist(dictionaryForLanguage(language[2])),'*')))
         # }
+        #grepWord <-lapply(rawcovariateId, function(x) as.vector(rowSums(quanteda::dfm(x, dictionary = dictionary, valuetype = "glob", verbose = F))))
 
-        grepWord <-lapply(rawcovariateId, function(x) as.vector(rowSums(quanteda::dfm(x, dictionary = dictionary, valuetype = "glob", verbose = F))))
+        grepWord <-lapply(rawcovariateId, function(x) as.vector(quanteda::dfm(x, dictionary = dictionary, valuetype = "glob", verbose = F)))
+
         NotInDictionary <- lapply(grepWord, function(x) which(x == 0))
 
         for(i in 1:length(rawcovariateId)){
