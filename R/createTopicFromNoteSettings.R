@@ -1,7 +1,7 @@
 #' Custom createCoveriate Settings
 #'
 #' This function is Custom createCoveriate Settings.
-#' @param useTopicFromNote,noteConceptId,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage
+#' @param noteConceptId,useDictionary,targetLanguage,limitedMedicalTermOnlyLanguage
 #' @keywordsa createCovariateSetting
 #' @export
 #' @examples
@@ -12,7 +12,7 @@ createTopicFromNoteSettings <- function(noteConceptId = c(44814637),
                                         topicModelExportRds = file.path(getwd(),"customTopicModel.rds"),
                                         useDictionary=TRUE,
                                         limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
-                                        nGram = c(1L,2L),
+                                        nGram = c(1L),
                                         buildTopidModelMinFrac = 0.001,
                                         buildTopidModelMaxFrac = 0.5,
                                         useTextToVec = FALSE,
@@ -36,7 +36,9 @@ createTopicFromNoteSettings <- function(noteConceptId = c(44814637),
     # if(!(useTextToVec|useTopicModeling) & !(nGram > 1)){
     #     stop('Use ngram only for useTextToVec,useTopicModeling')
     # }
-
+    if(sum(limitedMedicalTermOnlyLanguage %in% c('KOR','ENG')==FALSE) >=1){
+        stop("Implemented Language is c('KOR','ENG')")
+    }
     covariateSettings <- list(noteConceptId = noteConceptId,
                               existingTopicModel = existingTopicModel,
                               buildTopicModeling = buildTopicModeling,
@@ -75,11 +77,13 @@ createTopicFromNoteSettings <- function(noteConceptId = c(44814637),
 #' loadDefaultTopicModel()
 loadDefaultTopicModel<-function(noteConceptId = c(44814637),
                                 targetLanguage = c('KOR'),
+                                NumberOfTopics = 100,
+                                workingFile = file.path(getwd(),"customTopicModel.rds"),
                                 useModel = 'base'){
     if(useModel == 'base'){
-        return(readRDS(system.file("BaseData", paste0("TopicModel_(",noteConceptId,")_(",paste(targetLanguage,collapse = ','),").rds"),package = 'noteCovariateExtraction')))
+        return(readRDS(system.file("BaseData", paste0("TopicModel_(",noteConceptId,")_(",paste(targetLanguage,collapse = ','),")_(",paste0('TopicNum',NumberOfTopics),").rds"),package = 'noteCovariateExtraction')))
     }
     else if(useModel == 'custom'){
-        return(readRDS(system.file("CustomData", paste0("TopicModel_(",noteConceptId,")_(",paste(targetLanguage,collapse = ','),").rds"),package = 'noteCovariateExtraction')))
+        return(readRDS(workingFile))
     }
 }

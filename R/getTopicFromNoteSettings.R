@@ -23,10 +23,7 @@ getTopicFromNoteSettings <- function(connection,
                                      aggregated = FALSE){
 
     writeLines('Constructing TopicFromNote')
-    if (covariateSettings$useTopicFromNote == FALSE) {
-        return(NULL)
-    }
-    #if (covariateSettings$useDictionary == TRUE){
+
     #SQL query should be revised to extract only the latest record
     #SQL to construct the covariate:
     sql <- paste(
@@ -60,128 +57,139 @@ getTopicFromNoteSettings <- function(connection,
     rawcovariateId <- ff::ffapply(x[i1:i2],X= rawCovariates$covariateId, RETURN=TRUE, CFUN="list",
                                   AFUN = notePreprocessing <- function(covariateId){
 
-                                          covariateId <- gsub('<[^<>]*>',' ',covariateId) #Remove Tag
+                                      covariateId <- gsub('<[^<>]*>',' ',covariateId) #Remove Tag
 
-                                          #Remove html special characters
-                                          covariateId <- gsub('&#x0D;', " ", covariateId)
-                                          covariateId <- gsub('&lt;', " ", covariateId)
-                                          covariateId <- gsub('&gt;', " ", covariateId)
-                                          covariateId <- gsub('&amp;', " ", covariateId)
-                                          covariateId <- gsub('&quot;', " ", covariateId)
+                                      #Remove html special characters
+                                      covariateId <- gsub('&#x0D;', " ", covariateId)
+                                      covariateId <- gsub('&lt;', " ", covariateId)
+                                      covariateId <- gsub('&gt;', " ", covariateId)
+                                      covariateId <- gsub('&amp;', " ", covariateId)
+                                      covariateId <- gsub('&quot;', " ", covariateId)
 
-                                          #####At least one should be included.
-                                          #KOR PreProcessing
-                                          if('KOR' %in% covariateSettings$targetLanguage){
-                                              #remove hangle typo
-                                              covariateId <- gsub('[\u314f-\u3163]*','',covariateId)
-                                              covariateId <- gsub('[\u3131-\u314E]*','',covariateId)
+                                      #lower
+                                      covariateId<- tolower(covariateId)
 
-                                              #Only Korean and English are left. (remove special characters)
-                                              covariateId <- gsub('[^\uac00-\ud7a3a-zA-Z]',' ',covariateId)
-                                          }
+                                      #remove hangle typo
+                                      covariateId <- gsub('[\u314f-\u3163]*','',covariateId)
+                                      covariateId <- gsub('[\u3131-\u314E]*','',covariateId)
 
-                                          #The spacing is only once                                                               ## vector
-                                          covariateId <- stringr::str_replace_all(covariateId,"[[:space:]]{1,}"," ")
+                                      #if add other language, add unicode
+                                      covariateId <- gsub('[^\uac00-\ud7a3a-zA-Z]',' ',covariateId)
 
-                                          covariateId <- sub(' ','',covariateId)
-                                          if(covariateSettings$useTextToVec|covariateSettings$useTopicModeling == TRUE){
-                                              if(covariateSettings$nGram >= 2){
-                                                  covariateId <- lapply(covariateId, function(x) gsub(' ','',unlist(lapply(RWeka::NGramTokenizer(x, RWeka::Weka_control(min=1, max=covariateSettings$nGram)), paste0, collapse = ""))))
-                                                  covariateId <- lapply(covariateId, unique)
-                                              }
-                                              else{
-                                                  covariateId <- strsplit(covariateId,' ')##N-gram can be developed from here!
-                                                  covariateId <- lapply(covariateId, unique)
-                                              }
-                                          }
 
-                                          return(covariateId)
-                                      })
+                                      #The spacing is only once                                                           ## vector
+                                      covariateId <- stringr::str_replace_all(covariateId,"[[:space:]]{1,}"," ")
+
+                                      covariateId <- sub(' ','',covariateId)
+
+                                      return(covariateId)
+                                  })
     names(rawcovariateId) <- 'note'
     rawcovariateId <- rawcovariateId$'note'
 
-    if(covariateSettings$buildTopidModelMinFrac != 0){
-        MinValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMinFrac)
+    #Use word order
+    #Word Spacing -> Use last tag(?)
 
-        MoreThanMin <- data.frame(table(unlist(rawcovariateId)),stringsAsFactors = F)
-        MoreThanMinWord <- as.vector(MoreThanMin[MoreThanMin$'Freq'>=MinValue,1])
+    #Only word (not Word order) # Currently, only parts that do not care about word order are implemented.
+    #Word Spacing -> nGram -> Use unique words by each diagnosis -> Frequency -> Dictionary -> List to Docs -> Corpus
 
-        rawcovariateId<-lapply(rawcovariateId, function(x) intersect(x, MoreThanMinWord))
-
+    #nGram
+    if(covariateSettings$nGram > 1L){
+        rawcovariateId <- lapply(rawcovariateId, function(x) RWeka::NGramTokenizer(x,RWeka::Weka_control(min=1,max=covariateSettings$nGram)))
+        rawcovariateId <- lapply(rawcovariateId, function(x) sub(' ','',x))
+        rawcovariateId <- lapply(rawcovariateId, unique)
+    }
+    else{
+        rawcovariateId <- strsplit(rawcovariateId,' ')
     }
 
-    if(covariateSettings$useDictionary){
-        dictionary <- c()
-        for(language in covariateSettings$limitedMedicalTermOnlyLanguage){
-            dictionary <- paste(dictionary,
-                                unlist(lapply(lapply(rawcovariateId, function(x) intersect(x,dictionaryForLanguage(language))),function(x) paste(x,collapse = '|'))),sep = '|')
-        }
-        dictionary <- sub('\\|','',dictionary)
-        dictionary <- gsub('\\|{2,}','\\|',dictionary)
-        dictionary <- sub('\\|$','',dictionary)
+    #Frequency
+    if( (covariateSettings$buildTopidModelMinFrac != 0) | (covariateSettings$buildTopidModelMaxFrac != 1)){
+        MinValue <- as.integer(length(unlist(rawcovariateId)) * covariateSettings$buildTopidModelMinFrac)
+        MaxValue <- as.integer(length(unlist(rawcovariateId)) * covariateSettings$buildTopidModelMaxFrac)
 
-        #lapply..
+        wordFreq <- data.frame(table(unlist(rawcovariateId)),stringsAsFactors = F)
+        MoreThanMinWord <- wordFreq[wordFreq$Freq >= MinValue,]
+        MoreThanMinLessThanMaxWord <- MoreThanMinWord[MoreThanMinWord$Freq<=MaxValue,]
+        MoreThanMinLessThanMaxWordVec<-as.vector(MoreThanMinLessThanMaxWord[,1])
+        #unique
+        rawcovariateId<-lapply(rawcovariateId, function(x) intersect(x, MoreThanMinLessThanMaxWordVec))
+    }
+    else{
+        #unique
+        rawcovariateId <- lapply(rawcovariateId, unique)
+    }
+
+    #dictionary
+    if(covariateSettings$useDictionary == TRUE){
+        ##Extraction of words after reorganization with words existing in the certificate
+        dictionary <- unlist(lapply(covariateSettings$limitedMedicalTermOnlyLanguage, function(x) dictionaryForLanguage(x)))
+        uniqueWord <- unique(unlist(rawcovariateId))
+        dictionary <- quanteda::dictionary(list(lang1 = paste0(intersect(uniqueWord,dictionary),'*')))
+
+        # ## Extract up to words containing dictionary words
+        # language <- covariateSettings$limitedMedicalTermOnlyLanguage
+        # if(length(covariateSettings$limitedMedicalTermOnlyLanguage)==1){
+        #     dictionary <- quanteda::dictionary(list(lang1 = paste0(unlist(dictionaryForLanguage(language[1])),'*')))
+        # }
+        # else if(length(covariateSettings$limitedMedicalTermOnlyLanguage)==2){
+        #     dictionary <- quanteda::dictionary(list(lang1 = paste0(unlist(dictionaryForLanguage(language[1])),'*'),
+        #                                             lang2 = paste0(unlist(dictionaryForLanguage(language[2])),'*')))
+        # }
+        #grepWord <-lapply(rawcovariateId, function(x) as.vector(rowSums(quanteda::dfm(x, dictionary = dictionary, valuetype = "glob", verbose = F))))
+
+        grepWord <-lapply(rawcovariateId, function(x) as.vector(quanteda::dfm(x, dictionary = dictionary, valuetype = "glob", verbose = F)))
+
+        NotInDictionary <- lapply(grepWord, function(x) which(x == 0))
+
         for(i in 1:length(rawcovariateId)){
-            rawcovariateId[[i]] <- rawcovariateId[[i]][grep(dictionary[i],rawcovariateId[[i]])]
+            for(k in NotInDictionary[[i]]){
+                rawcovariateId[[i]][k] = ''
+            }
         }
+        #PreProcessing End, word List -> docs
+        rawcovariateId <- lapply(rawcovariateId, function(x) paste(x,collapse =' '))
+
+        rawcovariateId <- lapply(rawcovariateId, function(x) sub(' ','',stringr::str_replace_all(x,'[[:space:]]{1,}',' ')))
+
     }
+    else(
+        #PreProcessing End, word List -> docs
+        rawcovariateId <- lapply(rawcovariateId, function(x) paste(x,collapse =' '))
+    )
 
-    #Configuring covariate
-    rowIdMappingDf<- data.frame('rowId' = rep(1:length(rawCovariates$rowId)),'subject_id' = rawCovariates$rowId[1:length(rawCovariates$rowId)])
+    #make Corpus
+    my_docs <- tm::VectorSource(rawcovariateId)
+    my_corpus <- tm::VCorpus(my_docs)
+    DTM <- tm::DocumentTermMatrix(my_corpus)
+    Encoding(DTM$dimnames$Terms) = 'UTF-8'
+    wordList <- data.frame('word' = colnames(DTM),'num' = rep(1:ncol(DTM)))
 
-    names(rawcovariateId) <- rowIdMappingDf$'rowId'
+    covariates <- data.frame('rowId' = DTM$i,'covariateId' = DTM$j,'covariateValue' = DTM$v)
 
-    covariates <- reshape2::melt(data = rawcovariateId)
-    colnames(covariates) <- c('covariateId','rowId')
-    covariates$rowId <- as.numeric(covariates$rowId)
-    covariateValue <- rep(1,nrow(covariates))
-
-    covariates <- cbind(covariates,covariateValue)
-
-    #####################################
-
-    covariateId.factor<-as.factor(covariates$covariateId)
-
-    #rowIds<-levels(as.factor(covariates$rowId))
     if(covariateSettings$useTextToVec == TRUE){
         ##Text2Vec
-        covariates$covariateId<-as.numeric(paste0(9999,as.numeric(covariateId.factor)))
+        covariates$covariateId <- as.numeric(paste0(9999,DTM$j))
+
         covariates<-ff::as.ffdf(covariates)
 
-        covariateRef  <- data.frame(covariateId = as.numeric(paste0(9999,seq(levels(covariateId.factor)) )),
-                                    covariateName = paste0("NOTE-",levels(covariateId.factor)),
+        covariateRef  <- data.frame(covariateId = as.numeric(paste0(9999,DTM$j)),
+                                    covariateName = paste0("NOTE-",dplyr::left_join(data.frame('num'=DTM$j),wordList,by ='num')$word),
                                     analysisId = 0,
                                     conceptId = 0)
         covariateRef <- ff::as.ffdf(covariateRef)
     }
 
     if(covariateSettings$useTopicModeling == TRUE){
-        if (!is.null(covariateSettings$existingTopicModel)) {
-            mergedCov<-merge(covariates,covariateSettings$existingTopicModel$wordList,by.x="covariateId",by.y = "words")
 
-            covariateIdInt<-as.numeric(mergedCov$level)
-
-            #It also adds words that are missing to match the shape of the mattress
-            missingWord <- setdiff(covariateSettings$existingTopicModel$wordList$level,unique(covariateIdInt))
-
-            data <- Matrix::sparseMatrix(i=mergedCov$rowId,
-                                         j=covariateIdInt,
-                                         x=mergedCov$covariateValue, #add 0.1 to avoid to treated as binary values
-                                         dims=c(max(mergedCov$rowId), max(nrow(covariateSettings$existingTopicModel$wordList)))) # edit this to max(map$newIds)
-
-            colnames(data) <- as.numeric(paste0(9999,c(unique(mergedCov$level),missingWord) ))
-            lda_model = covariateSettings$existingTopicModel$topicModel
-
-
-        } else {
-            covariates$covariateId<-as.numeric(as.factor(covariates$covariateId))
+        if(is.null(covariateSettings$existingTopicModel)){
 
             data <- Matrix::sparseMatrix(i=covariates$rowId,
                                          j=covariates$covariateId,
                                          x=covariates$covariateValue, #add 0.1 to avoid to treated as binary values
                                          dims=c(max(covariates$rowId), max(covariates$covariateId))) # edit this to max(map$newIds)
 
-            colnames(data) <- as.numeric(paste0(9999,seq(levels(covariateId.factor)) ))
+            colnames(data) <- as.numeric(paste0(9999,wordList$num))
 
             if(covariateSettings$optimalTopicValue == TRUE){
 
@@ -202,6 +210,27 @@ getTopicFromNoteSettings <- function(connection,
 
                 lda_model = text2vec::LDA$new(n_topics = numberOfTopics, doc_topic_prior = 0.1, topic_word_prior = 0.01) # covariateSettings$numberOfTopics -> optimal
             }
+        }
+
+        if (!is.null(covariateSettings$existingTopicModel)) {
+
+            covariates$covariateId <- dplyr::left_join(data.frame('num'=DTM$j),wordList,by ='num')$word
+
+            mergedCov<-merge(covariates,covariateSettings$existingTopicModel$wordList,by.x="covariateId",by.y = "words")
+            covariateIdInt<-as.numeric(mergedCov$level)
+            if(nrow(mergedCov) == 0){
+                stop('buildTopicModel And your covariate Word None match')
+            }
+            #It also adds words that are missing to match the shape of the mattress
+            missingWord <- setdiff(covariateSettings$existingTopicModel$wordList$level,unique(covariateIdInt))
+
+            data <- Matrix::sparseMatrix(i=mergedCov$rowId,
+                                         j=covariateIdInt,
+                                         x=mergedCov$covariateValue, #add 0.1 to avoid to treated as binary values
+                                         dims=c(max(mergedCov$rowId), max(nrow(covariateSettings$existingTopicModel$wordList)))) # edit this to max(map$newIds)
+
+            colnames(data) <- as.numeric(paste0(9999,c(unique(mergedCov$level),missingWord) ))
+            lda_model = covariateSettings$existingTopicModel$topicModel
 
         }
 
