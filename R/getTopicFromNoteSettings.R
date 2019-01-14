@@ -105,6 +105,9 @@ getTopicFromNoteSettings <- function(connection,
 
     #Frequency
     if( (covariateSettings$buildTopidModelMinFrac != 0) | (covariateSettings$buildTopidModelMaxFrac != 1)){
+        #unique
+        rawcovariateId <- lapply(rawcovariateId, unique)
+
         MinValue <- as.integer(length(unlist(rawcovariateId)) * covariateSettings$buildTopidModelMinFrac)
         MaxValue <- as.integer(length(unlist(rawcovariateId)) * covariateSettings$buildTopidModelMaxFrac)
 
@@ -123,7 +126,8 @@ getTopicFromNoteSettings <- function(connection,
     #dictionary
     if(covariateSettings$useDictionary == TRUE){
         ##Extraction of words after reorganization with words existing in the certificate
-        dictionary <- unlist(lapply(covariateSettings$limitedMedicalTermOnlyLanguage, function(x) dictionaryForLanguage(x)))
+        dictionary <- lapply(covariateSettings$limitedMedicalTermOnlyLanguage, function(x) dictionaryForLanguage(x))
+        dictionary <- unlist(rapply(dictionary, as.character, classes="factor", how="replace"))
         uniqueWord <- unique(unlist(rawcovariateId))
         dictionary <- quanteda::dictionary(list(lang1 = paste0(intersect(uniqueWord,dictionary),'*')))
 
