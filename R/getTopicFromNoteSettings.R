@@ -108,8 +108,8 @@ getTopicFromNoteSettings <- function(connection,
         #unique
         rawcovariateId <- lapply(rawcovariateId, unique)
 
-        MinValue <- as.integer(length(unlist(rawcovariateId)) * covariateSettings$buildTopidModelMinFrac)
-        MaxValue <- as.integer(length(unlist(rawcovariateId)) * covariateSettings$buildTopidModelMaxFrac)
+        MinValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMinFrac)
+        MaxValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMaxFrac)
 
         wordFreq <- data.frame(table(unlist(rawcovariateId)),stringsAsFactors = F)
         MoreThanMinWord <- wordFreq[wordFreq$Freq >= MinValue,]
