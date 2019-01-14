@@ -220,20 +220,20 @@ getTopicFromNoteSettings <- function(connection,
 
             covariates$covariateId <- dplyr::left_join(data.frame('num'=DTM$j),wordList,by ='num')$word
 
-            mergedCov<-merge(covariates,covariateSettings$existingTopicModel$wordList,by.x="covariateId",by.y = "words")
-            covariateIdInt<-as.numeric(mergedCov$level)
+            mergedCov<-merge(covariates,covariateSettings$existingTopicModel$wordList,by.x="covariateId",by.y = "word")
+            covariateIdInt<-as.numeric(mergedCov$num)
             if(nrow(mergedCov) == 0){
                 stop('buildTopicModel And your covariate Word None match')
             }
             #It also adds words that are missing to match the shape of the mattress
-            missingWord <- setdiff(covariateSettings$existingTopicModel$wordList$level,unique(covariateIdInt))
+            missingWord <- setdiff(covariateSettings$existingTopicModel$wordList$num,unique(covariateIdInt))
 
             data <- Matrix::sparseMatrix(i=mergedCov$rowId,
                                          j=covariateIdInt,
                                          x=mergedCov$covariateValue, #add 0.1 to avoid to treated as binary values
                                          dims=c(max(mergedCov$rowId), max(nrow(covariateSettings$existingTopicModel$wordList)))) # edit this to max(map$newIds)
 
-            colnames(data) <- as.numeric(paste0(9999,c(unique(mergedCov$level),missingWord) ))
+            colnames(data) <- as.numeric(paste0(9999,c(unique(mergedCov$num),missingWord) ))
             lda_model = covariateSettings$existingTopicModel$topicModel
 
         }
