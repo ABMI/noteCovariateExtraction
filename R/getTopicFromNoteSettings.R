@@ -125,42 +125,29 @@ getTopicFromNoteSettings <- function(connection,
 
     #dictionary
     if(covariateSettings$useDictionary == TRUE){
-        ##Extraction of words after reorganization with words existing in the certificate
+
         dictionary <- lapply(covariateSettings$limitedMedicalTermOnlyLanguage, function(x) dictionaryForLanguage(x))
         dictionary <- unlist(rapply(dictionary, as.character, classes="factor", how="replace"))
-        uniqueWord <- unique(unlist(rawcovariateId))
-        dictionary <- quanteda::dictionary(list(lang1 = paste0(intersect(uniqueWord,dictionary),'*')))
 
-        # ## Extract up to words containing dictionary words
-        # language <- covariateSettings$limitedMedicalTermOnlyLanguage
-        # if(length(covariateSettings$limitedMedicalTermOnlyLanguage)==1){
-        #     dictionary <- quanteda::dictionary(list(lang1 = paste0(unlist(dictionaryForLanguage(language[1])),'*')))
-        # }
-        # else if(length(covariateSettings$limitedMedicalTermOnlyLanguage)==2){
-        #     dictionary <- quanteda::dictionary(list(lang1 = paste0(unlist(dictionaryForLanguage(language[1])),'*'),
-        #                                             lang2 = paste0(unlist(dictionaryForLanguage(language[2])),'*')))
-        # }
-        #grepWord <-lapply(rawcovariateId, function(x) as.vector(rowSums(quanteda::dfm(x, dictionary = dictionary, valuetype = "glob", verbose = F))))
+        ## Extract up to words containing dictionary words
+        # dictionary <- paste(dictionary,collapse = '|')
+        # rawcovariateId <-lapply(rawcovariateId, function(x) grep(dictionary,x,value = T))
+        ##################################################
 
-        grepWord <-lapply(rawcovariateId, function(x) as.vector(quanteda::dfm(x, dictionary = dictionary, valuetype = "glob", verbose = F)))
-
-        NotInDictionary <- lapply(grepWord, function(x) which(x == 0))
-
+        ##Extraction of words after reorganization with words existing in the certificate
+        SimplifyDictionary <- lapply(rawcovariateId, function(x) intersect(unique(x),dictionary))
+        SimplifyDictionary <- lapply(SimplifyDictionary, function(x) paste(x,collapse = '|'))
         for(i in 1:length(rawcovariateId)){
-            for(k in NotInDictionary[[i]]){
-                rawcovariateId[[i]][k] = ''
-            }
+            rawcovariateId[[i]] <- grep(SimplifyDictionary[[i]],rawcovariateId[[i]],value=T)
         }
+        #################################################################################
         #PreProcessing End, word List -> docs
         rawcovariateId <- lapply(rawcovariateId, function(x) paste(x,collapse =' '))
-
-        rawcovariateId <- lapply(rawcovariateId, function(x) sub(' ','',stringr::str_replace_all(x,'[[:space:]]{1,}',' ')))
-
     }
-    else(
+    else{
         #PreProcessing End, word List -> docs
         rawcovariateId <- lapply(rawcovariateId, function(x) paste(x,collapse =' '))
-    )
+    }
 
     #make Corpus
     my_docs <- tm::VectorSource(rawcovariateId)
