@@ -1,17 +1,11 @@
 #' Custom createCoveriate Settings
 #'
 #' This function is Custom createCoveriate Settings.
-#' @connection connection,oracleTempSchema,cdmDatabaseSchema,cohortTable,cohortId,cdmVersion,rowIdField,covariateSettings,aggregated
-#' @oracleTempSchema createCovariateSetting
-#' @cdmDatabaseSchema
-#' @cohortTable
-#' @cohortId
-#' @cdmVersion
-#' @rowIdField
-#' @noteConceptId
-#' @covariateSettings
-#' @aggregated
+#' @param connection,oracleTempSchema,cdmDatabaseSchema,cohortTable,cohortId,cdmVersion,rowIdField,covariateSettings,aggregated
+#' @keywordsa createCovariateSetting
+#' @examples
 #' getTopicFromNoteSettings()
+#' @export
 getTopicFromNoteSettings <- function(connection,
                                      oracleTempSchema = NULL,
                                      cdmDatabaseSchema,
@@ -32,11 +26,12 @@ getTopicFromNoteSettings <- function(connection,
         sql <- paste(
             'SELECT',
             '{@sampleSize != -1} ? {TOP @sampleSize}',
-            " @row_id_field AS row_id,",
+            " subject_id AS row_id,",
             'n.NOTE_TEXT AS covariate_id,',
             '1 AS covariate_value',
             'FROM @cdm_database_schema.NOTE n',
-            'JOIN @cohort_table c',
+            'JOIN',
+            '{@cohort_schema != ""} ? {@cohort_schema.}@cohort_table c',
             'ON n.person_id = c.subject_id',
             'AND n.NOTE_DATE = c.COHORT_START_DATE',
             'WHERE NOTE_TYPE_CONCEPT_ID = (SELECT DESCENDANT_CONCEPT_ID FROM @cdm_database_schema.CONCEPT_ANCESTOR WHERE ANCESTOR_CONCEPT_ID IN (@note_concept_id) )',
@@ -44,10 +39,10 @@ getTopicFromNoteSettings <- function(connection,
             ';'
         )
         sql <- SqlRender::renderSql(sql,
-                                    cohort_table = cohortTable,
+                                    cohort_schema = covariateSettings$ComparisonCohortSchema,
+                                    cohort_table = covariateSettings$ComparisonCohortTable,
                                     cohort_id = ComparisonCohortId,
                                     note_concept_id = covariateSettings$noteConceptId,
-                                    row_id_field = rowIdField,
                                     sampleSize=covariateSettings$sampleSize,
                                     cdm_database_schema = cdmDatabaseSchema)$sql
         sql <- SqlRender::translateSql(sql, targetDialect = attr(connection, "dbms"))$sql
@@ -341,8 +336,8 @@ getTopicFromNoteSettings <- function(connection,
 
         covariates<-ff::as.ffdf(covariates)
 
-        covariateRef  <- data.frame(covariateId = as.numeric(paste0(9999,DTM$j)),
-                                    covariateName = paste0("NOTE-",dplyr::left_join(data.frame('num'=DTM$j),wordList,by ='num')$word),
+        covariateRef  <- data.frame(covariateId = as.numeric(paste0(9999,wordList$num)),
+                                    covariateName = paste0("NOTE-",wordList$word),
                                     analysisId = 0,
                                     conceptId = 0)
         covariateRef <- ff::as.ffdf(covariateRef)
@@ -414,6 +409,7 @@ getTopicFromNoteSettings <- function(connection,
 
         covariates$covariateId<-as.numeric(as.character(covariates$covariateId))
         covariates<-covariates[covariates$covariateValue!=0,]
+        rownames(covariates) <- rep(1:nrow(covariates))
         covariates<-ff::as.ffdf(covariates)
 
         ##need to remove 0

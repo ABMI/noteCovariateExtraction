@@ -1,7 +1,7 @@
 exportPattern("^[[:alpha:]]+")
+export(getTopicFromNoteSettings)
 export(createLoadingDefaultTopicModelSetting)
 export(createTextToVecSetting)
 export(createTopicModelingSetting)
 export(dictionaryForLanguage)
-export(getTopicFromNoteSettings)
 export(loadDefaultTopicModel)
