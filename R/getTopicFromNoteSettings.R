@@ -28,7 +28,8 @@ getTopicFromNoteSettings <- function(connection,
             '{@sampleSize != -1} ? {TOP @sampleSize}',
             " subject_id AS row_id,",
             'n.NOTE_TEXT AS covariate_id,',
-            '1 AS covariate_value',
+            '1 AS covariate_value,',
+            'n.NOTE_TITLE AS note_title',
             'FROM @cdm_database_schema.NOTE n',
             'JOIN',
             '{@cohort_schema != ""} ? {@cohort_schema.}@cohort_table c',
@@ -83,6 +84,7 @@ getTopicFromNoteSettings <- function(connection,
 
                                           return(covariateId)
                                       })
+
         names(rawcovariateId) <- 'note'
         rawcovariateId <- rawcovariateId$'note'
 
@@ -96,10 +98,22 @@ getTopicFromNoteSettings <- function(connection,
             rawcovariateId <- strsplit(rawcovariateId,' ')
         }
 
+        #Remove common words by NOTE_TITLE
+        noteTitleDf <- data.frame('word' = levels(rawCovariates$noteTitle), 'levels' = seq(levels(rawCovariates$noteTitle)),stringsAsFactors = F)
+        detailsType <- dplyr::left_join(data.frame('word' = as.vector(rawCovariates[['noteTitle']][]),stringsAsFactors = F),noteTitleDf,by ='word')
+        names(rawcovariateId) <- detailsType$levels
+        CommonWord <- list()
+        for(i in sort(as.numeric(unique(names(rawcovariateId))))){
+            CommonWord[[i]]<- Reduce(intersect, rawcovariateId[grep(i,names(rawcovariateId))])
+        }
+        for(i in 1:length(rawcovariateId)){
+            rawcovariateId[[i]] <- setdiff(unique(rawcovariateId[[i]]),unlist(CommonWord[as.numeric(names(rawcovariateId[i]))]))
+        }
+
         #Frequency
         if( (covariateSettings$buildTopidModelMinFrac != 0) | (covariateSettings$buildTopidModelMaxFrac != 1)){
             #unique
-            rawcovariateId <- lapply(rawcovariateId, unique)
+            #rawcovariateId <- lapply(rawcovariateId, unique)
 
             MinValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMinFrac)
             MaxValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMaxFrac)
@@ -206,7 +220,8 @@ getTopicFromNoteSettings <- function(connection,
         '{@sampleSize != -1} ? {TOP @sampleSize}',
         " @row_id_field AS row_id,",
         'n.NOTE_TEXT AS covariate_id,',
-        '1 AS covariate_value',
+        '1 AS covariate_value,',
+        'NOTE_TITLE AS note_title',
         'FROM @cdm_database_schema.NOTE n',
         'JOIN @cohort_table c',
         'ON n.person_id = c.subject_id',
@@ -275,10 +290,22 @@ getTopicFromNoteSettings <- function(connection,
         rawcovariateId <- strsplit(rawcovariateId,' ')
     }
 
+    #Remove common words by NOTE_TITLE
+    noteTitleDf <- data.frame('word' = levels(rawCovariates$noteTitle), 'levels' = seq(levels(rawCovariates$noteTitle)),stringsAsFactors = F)
+    detailsType <- dplyr::left_join(data.frame('word' = as.vector(rawCovariates[['noteTitle']][]),stringsAsFactors = F),noteTitleDf,by ='word')
+    names(rawcovariateId) <- detailsType$levels
+    CommonWord <- list()
+    for(i in sort(as.numeric(unique(names(rawcovariateId))))){
+        CommonWord[[i]]<- Reduce(intersect, rawcovariateId[grep(i,names(rawcovariateId))])
+    }
+    for(i in 1:length(rawcovariateId)){
+        rawcovariateId[[i]] <- setdiff(unique(rawcovariateId[[i]]),unlist(CommonWord[as.numeric(names(rawcovariateId[i]))]))
+    }
+
     #Frequency
     if( (covariateSettings$buildTopidModelMinFrac != 0) | (covariateSettings$buildTopidModelMaxFrac != 1)){
         #unique
-        rawcovariateId <- lapply(rawcovariateId, unique)
+        #rawcovariateId <- lapply(rawcovariateId, unique)
 
         MinValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMinFrac)
         MaxValue <- as.integer(length(unique(unlist(rawcovariateId))) * covariateSettings$buildTopidModelMaxFrac)
