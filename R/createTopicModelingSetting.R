@@ -8,6 +8,8 @@
 #' createTopicModelingSetting()
 createTopicModelingSetting <- function(noteConceptId = c(44814637),
                                        topicModelExportRds = file.path(getwd(),"customTopicModel.rds"),
+                                       ComparisonCohortSchema = '',
+                                       ComparisonCohortTable = 'cohort',
                                        ComparisonCohortId = -1,
                                        useDictionary=TRUE,
                                        limitedMedicalTermOnlyLanguage = c('KOR','ENG'),
@@ -34,6 +36,8 @@ createTopicModelingSetting <- function(noteConceptId = c(44814637),
                               buildTopicModeling = TRUE,
                               topicModelExportRds = topicModelExportRds,
                               ComparisonCohortId = ComparisonCohortId,
+                              ComparisonCohortSchema = ComparisonCohortSchema,
+                              ComparisonCohortTable = ComparisonCohortTable,
                               ##TextToVec+TopicModeling
                               useDictionary = useDictionary,
                               limitedMedicalTermOnlyLanguage = limitedMedicalTermOnlyLanguage,
