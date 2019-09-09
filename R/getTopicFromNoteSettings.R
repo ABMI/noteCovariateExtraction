@@ -468,7 +468,8 @@ getTopicFromNoteSettings <- function(connection,
     result <- list(covariates = covariates,
                    covariateRef = covariateRef,
                    analysisRef = analysisRef,
-                   metaData = metaData)
+                   metaData = metaData,
+                   DTM = DTM)
     class(result) <- "covariateData"
     return(result)
 
